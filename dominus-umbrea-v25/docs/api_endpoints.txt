@@ -1,0 +1,15 @@
+# Endpoints de la API del Backend (Flask)
+
+## Transmutación
+
+- **URL:** `/api/transmuta`
+- **Método:** POST
+- **Body:** `{ "vnm": "string" }`
+- **Respuesta:** `{ "status": "string", "vnm_processed": "string", "timestamp_local": "string" }`
+
+## Análisis Forense
+
+- **URL:** `/api/forense/scan`
+- **Método:** POST
+- **Body:** `{ "content": "string" }`
+- **Respuesta:** `{ "origen": "string", "confidence": "float" }`
