@@ -1,0 +1,501 @@
+<!-- Chosen Palette: "Neuro-Link" - Void Black (#000000), Deep Carbon (#0a0a0a), Neon Cyan (#06b6d4) for Letra/Free Will, Crimson (#f43f5e) for Thorne/Control, and Amber (#f59e0b) for Warning/System. -->
+
+<!-- Application Structure Plan:
+    The SPA is designed as the "Dominus Umbrea Omni-Terminal". It serves as a unified interface to explore the narrative, the technology, and the financial model of the project.
+    1.  **Header (System Status):** Persistent monitoring of the "Simulation Integrity".
+    2.  **The Core (Tabbed Interface):**
+        * **VISUAL FORGE:** The Vignette renderer with CSS filters.
+        * **CORTEX FORGE:** The Voice Cloning & Modulation interface (Audio API visualization).
+    3.  **Narrative Telemetry (Charts):** Visualizes the "Arc of Sovereignty".
+    4.  **Database:** Lore cards (Anchors of Reality).
+    5.  **Footer:** Root Access call to action.
+-->
+
+<!-- Visualization & Content Choices:
+    1.  **Vignette Forge:** Interactive Image Viewer with CSS Filter sliders.
+    2.  **Cortex Forge (Audio):** Uses HTML5 AudioContext and Canvas to visualize microphone input in real-time (Waveform/Frequency). Simulates DNA Extraction.
+    3.  **Sovereignty Chart:** Line Chart showing Agency vs. Determinism.
+-->
+
+<!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="Isai Chavez">
+    <title>DOMINUS UMBREA | Omni-Terminal v67</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body { font-family: 'Rajdhani', sans-serif; background-color: #020202; color: #e2e8f0; overflow: hidden; }
+        .mono { font-family: 'JetBrains Mono', monospace; }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 4px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #3b82f6; border-radius: 2px; }
+
+        /* Chart Container */
+        .chart-container { position: relative; width: 100%; height: 200px; }
+
+        /* Image Filter Transitions */
+        #forge-image { transition: filter 0.2s ease-out, transform 0.5s ease-out; }
+
+        /* Scanlines */
+        .scanlines {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        /* Glitch Animation */
+        .glitch-text:hover { animation: glitch-anim 0.3s infinite; color: #f43f5e; }
+        @keyframes glitch-anim {
+            0% { transform: translate(0) } 20% { transform: translate(-2px, 2px) }
+            40% { transform: translate(-2px, -2px) } 60% { transform: translate(2px, 2px) }
+            80% { transform: translate(2px, -2px) } 100% { transform: translate(0) }
+        }
+
+        /* Audio Visualizer Canvas */
+        #audio-canvas { width: 100%; height: 100%; }
+
+        .glass-panel { background: rgba(15, 23, 42, 0.6); backdrop-filter: blur(8px); border: 1px solid rgba(56, 189, 248, 0.1); }
+        .tab-active { border-bottom: 2px solid #06b6d4; color: #06b6d4; background: rgba(6, 182, 212, 0.05); }
+    </style>
+</head>
+<body class="h-screen flex flex-col selection:bg-cyan-500 selection:text-black">
+
+    <!-- Header -->
+    <header class="h-14 bg-[#050505] border-b border-gray-800 flex items-center justify-between px-6 z-50 shrink-0">
+        <div class="flex items-center gap-3">
+            <div class="relative">
+                <i data-lucide="cpu" class="text-cyan-500 w-5 h-5"></i>
+                <div class="absolute -top-1 -right-1 w-2 h-2 bg-green-500 rounded-full animate-pulse shadow-[0_0_8px_#22c55e]"></div>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg tracking-widest text-white leading-none">DOMINUS<span class="text-cyan-500">_OS</span></h1>
+                <p class="text-[9px] text-gray-500 mono leading-none">OMNI-TERMINAL v67.DEF | ARCHITECT: ISAI CHAVEZ</p>
+            </div>
+        </div>
+
+        <div class="flex gap-4">
+            <button onclick="switchTab('visual')" id="tab-visual" class="tab-active px-4 py-2 text-xs font-bold mono tracking-wider transition-all flex items-center gap-2">
+                <i data-lucide="eye" class="w-3 h-3"></i> FORJA VISUAL
+            </button>
+            <button onclick="switchTab('audio')" id="tab-audio" class="px-4 py-2 text-xs font-bold mono tracking-wider text-gray-500 hover:text-white transition-all flex items-center gap-2">
+                <i data-lucide="mic-2" class="w-3 h-3"></i> FORJA CÓRTEX
+            </button>
+        </div>
+
+        <div class="hidden md:flex items-center gap-6 text-[10px] mono">
+            <div class="flex flex-col items-end">
+                <span class="text-gray-500">INTEGRIDAD REALIDAD</span>
+                <span id="integrity-stat" class="text-cyan-400 font-bold">98.4%</span>
+            </div>
+            <div class="h-6 w-px bg-gray-800"></div>
+            <div class="flex flex-col items-end">
+                <span class="text-gray-500">PROTOCOLO ACTIVO</span>
+                <span class="text-rose-500 font-bold animate-pulse">MODO: DIOS</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex flex-1 overflow-hidden">
+
+        <!-- Left Sidebar: Narrative/Data -->
+        <aside class="w-72 bg-[#080808] border-r border-gray-800 flex flex-col shrink-0 overflow-y-auto z-20">
+            <div class="p-4 border-b border-gray-800 bg-[#050505] sticky top-0 z-10">
+                <h2 class="text-xs font-bold text-cyan-600 tracking-widest mb-1 flex items-center gap-2">
+                    <i data-lucide="database" class="w-3 h-3"></i> SECUENCIA DE DATOS
+                </h2>
+            </div>
+
+            <div id="sidebar-content" class="flex-1 p-2 space-y-2">
+                <!-- Content injected via JS based on active tab -->
+            </div>
+
+            <div class="p-4 border-t border-gray-800 bg-[#050505]">
+                <h3 class="text-[9px] font-bold text-gray-500 mb-2 mono">ARCO DE SOBERANÍA</h3>
+                <div class="chart-container" style="height: 100px;">
+                    <canvas id="tensionChart"></canvas>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center: The Forge (Visual or Audio) -->
+        <main class="flex-1 bg-black flex flex-col relative overflow-hidden">
+
+            <!-- VISUAL FORGE VIEW -->
+            <div id="view-visual" class="absolute inset-0 flex flex-col h-full w-full">
+                <div class="flex-1 relative flex items-center justify-center bg-[#020202]">
+                    <div class="scanlines absolute inset-0"></div>
+                    <div class="relative w-full h-full max-w-5xl max-h-[80vh] aspect-video shadow-2xl border border-gray-800 overflow-hidden group">
+                        <img id="forge-image" src="" class="w-full h-full object-cover opacity-0 transition-opacity duration-500" alt="Scene Render">
+                        <div id="loader-visual" class="absolute inset-0 flex flex-col items-center justify-center bg-black z-30 transition-opacity duration-300">
+                            <i data-lucide="loader-2" class="w-10 h-10 text-cyan-500 animate-spin mb-2"></i>
+                            <span class="text-xs mono text-cyan-500 tracking-[0.3em]">RENDERIZANDO...</span>
+                        </div>
+                        <div class="absolute bottom-0 left-0 w-full bg-gradient-to-t from-black via-black/80 to-transparent p-8 pt-24 transform translate-y-2 group-hover:translate-y-0 transition-transform duration-300">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span id="scene-act" class="text-[10px] font-bold bg-cyan-900/50 text-cyan-300 px-2 py-0.5 rounded border border-cyan-500/30">ACTO 1</span>
+                            </div>
+                            <h2 id="scene-title" class="text-3xl font-black text-white mb-2 tracking-tight uppercase">...</h2>
+                            <p id="scene-desc" class="text-sm text-gray-300 font-light leading-relaxed border-l-2 border-cyan-500 pl-4"></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="h-auto bg-[#0a0a0c] border-t border-gray-800 p-4 flex items-center justify-between gap-4 z-20">
+                    <div class="flex gap-2">
+                        <button onclick="changeScene(-1)" class="p-2 border border-gray-700 rounded hover:text-white text-gray-400"><i data-lucide="chevron-left" class="w-4 h-4"></i></button>
+                        <button onclick="changeScene(1)" class="p-2 border border-gray-700 rounded hover:text-white text-gray-400"><i data-lucide="chevron-right" class="w-4 h-4"></i></button>
+                    </div>
+                    <div class="flex gap-6 w-full md:w-auto items-center">
+                        <div class="flex flex-col w-32">
+                            <label class="text-[9px] text-gray-500 mb-1 flex justify-between"><span>GLITCH</span> <span id="glitch-val">0%</span></label>
+                            <input type="range" id="glitch-slider" min="0" max="100" value="0" class="h-1 bg-gray-800 rounded-lg appearance-none cursor-pointer accent-rose-500" oninput="updateVisualFilters()">
+                        </div>
+                        <button onclick="regenerateVisual()" class="bg-cyan-700 hover:bg-cyan-600 text-white px-6 py-2 rounded text-xs font-bold tracking-widest flex items-center gap-2 transition-all">
+                            <i data-lucide="refresh-cw" class="w-3 h-3"></i> REFORJAR
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- AUDIO FORGE VIEW (Hidden by default) -->
+            <div id="view-audio" class="absolute inset-0 flex-col h-full w-full hidden bg-[#050505]">
+                <div class="flex-1 relative flex items-center justify-center">
+                    <!-- Audio Visualizer Canvas -->
+                    <canvas id="audio-canvas" class="absolute inset-0 z-0"></canvas>
+                    <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-black opacity-80 pointer-events-none"></div>
+
+                    <div class="relative z-10 text-center space-y-6">
+                        <div id="mic-status" class="w-24 h-24 rounded-full border-2 border-gray-700 flex items-center justify-center mx-auto transition-all duration-300">
+                            <i data-lucide="mic" class="w-8 h-8 text-gray-500"></i>
+                        </div>
+                        <div>
+                            <h2 class="text-2xl font-bold text-white mb-1">CÓRTEX AUDITIVO</h2>
+                            <p class="text-xs text-gray-500 mono">ESPERANDO INPUT DE VOZ HUMANA</p>
+                        </div>
+                        <button id="record-btn" onclick="toggleRecording()" class="bg-rose-900/20 border border-rose-500/50 text-rose-400 hover:bg-rose-600 hover:text-white px-8 py-3 rounded-full text-sm font-bold tracking-widest flex items-center gap-2 mx-auto transition-all shadow-[0_0_20px_rgba(244,63,94,0.2)]">
+                            <i data-lucide="mic" class="w-4 h-4"></i> INICIAR GRABACIÓN
+                        </button>
+                    </div>
+                </div>
+
+                <!-- DNA Extraction Panel -->
+                <div class="h-64 bg-[#0a0a0c] border-t border-gray-800 p-6 grid grid-cols-3 gap-6 z-20">
+                    <div class="col-span-1 border-r border-gray-800 pr-6">
+                        <h3 class="text-[10px] font-bold text-cyan-500 uppercase tracking-widest mb-4">ADN VOCAL EXTRAÍDO</h3>
+                        <div id="dna-output" class="text-xs font-mono text-gray-400 space-y-2">
+                            <div class="flex justify-between"><span>TONO BASE:</span> <span class="text-white">---</span></div>
+                            <div class="flex justify-between"><span>CADENCIA:</span> <span class="text-white">---</span></div>
+                            <div class="flex justify-between"><span>EMOCIÓN:</span> <span class="text-white">---</span></div>
+                            <div class="mt-4 p-2 bg-gray-900 rounded border border-gray-800 text-[10px] text-gray-500">
+                                Esperando muestra para análisis espectral...
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-span-2">
+                        <h3 class="text-[10px] font-bold text-emerald-500 uppercase tracking-widest mb-4">INYECCIÓN EN DAEMON</h3>
+                        <div class="bg-black border border-gray-800 rounded p-4 h-full font-mono text-[10px] text-green-500 overflow-y-auto" id="terminal-log">
+                            > SYSTEM_READY<br>
+                            > AUDIO_ENGINE: WEBAUDIO_API_V2<br>
+                            > WAITING_FOR_INPUT...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </main>
+
+        <!-- Right Sidebar: Database/Lore -->
+        <aside class="w-80 bg-[#080808] border-l border-gray-800 hidden lg:flex flex-col shrink-0 overflow-y-auto z-20">
+            <div class="p-5 border-b border-gray-800">
+                <h3 class="text-xs font-bold text-rose-500 mb-4 tracking-widest flex items-center gap-2">
+                    <i data-lucide="shield-alert" class="w-3 h-3"></i> AMENAZA ACTIVA
+                </h3>
+                <div class="glass-panel p-3 rounded mb-4">
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs font-bold text-white">Protocolo Basilisco</span>
+                        <span class="text-[10px] text-rose-400 mono">NIVEL 5</span>
+                    </div>
+                    <div class="w-full bg-gray-800 h-1 rounded overflow-hidden">
+                        <div class="h-full bg-rose-600 w-[95%]"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-5 flex-1 space-y-4">
+                <h3 class="text-xs font-bold text-purple-500 mb-2 tracking-widest flex items-center gap-2">
+                    <i data-lucide="anchor" class="w-3 h-3"></i> ANCLAS DE REALIDAD
+                </h3>
+                <div class="p-3 border border-gray-800 bg-gray-900/30 rounded flex gap-3 items-center hover:border-yellow-500 transition-colors cursor-help group">
+                    <span class="text-xl">🍕</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-300 group-hover:text-yellow-400">Pizza Infinita</h4>
+                        <p class="text-[9px] text-gray-600 mono">INPUT_SENSORIAL</p>
+                    </div>
+                </div>
+                <div class="p-3 border border-gray-800 bg-gray-900/30 rounded flex gap-3 items-center hover:border-cyan-500 transition-colors cursor-help group">
+                    <span class="text-xl">🎤</span>
+                    <div>
+                        <h4 class="text-xs font-bold text-gray-300 group-hover:text-cyan-400">Micrófono Maldito</h4>
+                        <p class="text-[9px] text-gray-600 mono">ROOT_ACCESS</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-5 border-t border-gray-800">
+                <button class="w-full border border-gray-600 hover:border-white text-gray-400 hover:text-white py-2 rounded text-xs font-bold transition-all mono">
+                    > EXPORTAR_ADN.JSON
+                </button>
+            </div>
+        </aside>
+
+    </div>
+
+    <script>
+        lucide.createIcons();
+
+        // --- GLOBAL STATE ---
+        let currentTab = 'visual';
+        let currentSceneIndex = 0;
+        let audioCtx, analyser, dataArray, source;
+        let isRecording = false;
+
+        // --- DATA: SCENES ---
+        const scenes = [
+            { act: "ACTO 1", title: "La Caída de Ícaro", desc: "Letra cae desde la estratosfera. Thorne observa. Impacto inminente.", img: "https://images.unsplash.com/photo-1462331940025-496dfbfc7564?q=80&w=2022&auto=format&fit=crop", glitch: 0 },
+            { act: "ACTO 2", title: "Simbiosis Grabada", desc: "Letra entrega el chip rojo (Umbrea Mala) a Thorne. 00:01 en el reloj.", img: "https://images.unsplash.com/photo-1614728263952-84ea256f9679?q=80&w=1908&auto=format&fit=crop", glitch: 25 },
+            { act: "ACTO 3", title: "Autopista 4:20", desc: "Interior del DeLorean deshaciéndose en el vórtice. Sinestesia pura.", img: "https://images.unsplash.com/photo-1550684848-fac1c5b4e853?q=80&w=1920&auto=format&fit=crop", glitch: 60 },
+            { act: "ACTO 4", title: "Fusión Biomecánica", desc: "Elena y Dominus se unen en el Volcán. Nace Daemon.", img: "https://images.unsplash.com/photo-1531297461136-82lw8e4a9075?q=80&w=1920&auto=format&fit=crop", glitch: 40 },
+            { act: "ACTO 5", title: "Sandbox Bañera", desc: "La realidad se rompe. Azulejos blancos. Privilegios de Admin.", img: "https://images.unsplash.com/photo-1629198688000-71f23e745b6e?q=80&w=1920&auto=format&fit=crop", glitch: 85 }
+        ];
+
+        // --- TABS LOGIC ---
+        function switchTab(tab) {
+            currentTab = tab;
+            document.querySelectorAll('button[id^="tab-"]').forEach(b => {
+                b.classList.remove('tab-active', 'text-cyan-500');
+                b.classList.add('text-gray-500');
+            });
+            document.getElementById(`tab-${tab}`).classList.add('tab-active', 'text-cyan-500');
+            document.getElementById(`tab-${tab}`).classList.remove('text-gray-500');
+
+            document.getElementById('view-visual').classList.add('hidden');
+            document.getElementById('view-audio').classList.add('hidden');
+            document.getElementById(`view-${tab}`).classList.remove('hidden');
+
+            renderSidebarContent();
+        }
+
+        // --- SIDEBAR RENDERER ---
+        function renderSidebarContent() {
+            const container = document.getElementById('sidebar-content');
+            container.innerHTML = '';
+
+            if (currentTab === 'visual') {
+                scenes.forEach((scene, idx) => {
+                    const btn = document.createElement('button');
+                    btn.className = `w-full text-left px-4 py-3 border-b border-gray-800/50 hover:bg-[#0f0f12] transition-colors flex flex-col gap-1 group ${idx === currentSceneIndex ? 'bg-[#0f0f12] border-l-2 border-l-cyan-500' : 'border-l-2 border-l-transparent'}`;
+                    btn.onclick = () => loadScene(idx);
+                    btn.innerHTML = `<span class="text-[9px] font-bold text-gray-500 uppercase tracking-widest group-hover:text-cyan-600">${scene.act}</span><span class="text-xs font-bold text-gray-300 truncate">${scene.title}</span>`;
+                    container.appendChild(btn);
+                });
+            } else {
+                // Audio History
+                container.innerHTML = `
+                    <div class="p-4 text-xs text-gray-500 font-mono text-center">HISTORIAL DE MUESTRAS</div>
+                    <div class="px-4 py-2 border-b border-gray-800 bg-gray-900/20 text-[10px] mono text-cyan-500">MUESTRA_001.WAV <span class="float-right text-green-500">OK</span></div>
+                    <div class="px-4 py-2 border-b border-gray-800 bg-gray-900/20 text-[10px] mono text-gray-500">MUESTRA_002.WAV <span class="float-right text-red-500">ERR</span></div>
+                `;
+            }
+        }
+
+        // --- VISUAL FORGE LOGIC ---
+        function loadScene(idx) {
+            currentSceneIndex = idx;
+            const scene = scenes[idx];
+            renderSidebarContent(); // Update active state
+
+            const loader = document.getElementById('loader-visual');
+            const img = document.getElementById('forge-image');
+
+            loader.style.opacity = '1';
+            img.style.opacity = '0';
+
+            setTimeout(() => {
+                img.src = scene.img;
+                document.getElementById('scene-act').innerText = scene.act;
+                document.getElementById('scene-title').innerText = scene.title;
+                document.getElementById('scene-desc').innerText = scene.desc;
+
+                // Auto-set glitch
+                document.getElementById('glitch-slider').value = scene.glitch;
+                updateVisualFilters();
+
+                loader.style.opacity = '0';
+                img.style.opacity = '1';
+            }, 500);
+        }
+
+        function changeScene(dir) {
+            let next = currentSceneIndex + dir;
+            if (next >= 0 && next < scenes.length) loadScene(next);
+        }
+
+        function updateVisualFilters() {
+            const val = document.getElementById('glitch-slider').value;
+            const img = document.getElementById('forge-image');
+            document.getElementById('glitch-val').innerText = val + '%';
+
+            const contrast = 100 + (val * 0.5);
+            const saturate = 100 + (val * 0.2);
+            const sepia = val * 0.4;
+            const hue = val > 80 ? Math.random() * 20 : 0;
+
+            img.style.filter = `contrast(${contrast}%) saturate(${saturate}%) sepia(${sepia}%) hue-rotate(${hue}deg)`;
+        }
+
+        function regenerateVisual() {
+            const t = document.getElementById('scene-title');
+            t.classList.add('glitch-text');
+            loadScene(currentSceneIndex);
+            setTimeout(() => t.classList.remove('glitch-text'), 500);
+        }
+
+        // --- CORTEX FORGE (AUDIO) LOGIC ---
+        async function toggleRecording() {
+            const btn = document.getElementById('record-btn');
+            const status = document.getElementById('mic-status');
+            const log = document.getElementById('terminal-log');
+
+            if (!isRecording) {
+                // Start
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                    analyser = audioCtx.createAnalyser();
+                    source = audioCtx.createMediaStreamSource(stream);
+                    source.connect(analyser);
+                    analyser.fftSize = 256;
+
+                    isRecording = true;
+                    visualizeAudio();
+
+                    btn.innerHTML = `<i data-lucide="square" class="w-4 h-4"></i> DETENER`;
+                    btn.classList.replace('border-rose-500/50', 'border-red-500');
+                    btn.classList.add('animate-pulse');
+                    status.classList.add('border-red-500', 'shadow-[0_0_20px_red]');
+                    log.innerHTML += `<br>> REC_START: CAPTURING BIO_SIGNALS...`;
+                    log.scrollTop = log.scrollHeight;
+                } catch (e) {
+                    alert("Error: Acceso al micrófono denegado.");
+                }
+            } else {
+                // Stop & Analyze
+                isRecording = false;
+                btn.innerHTML = `<i data-lucide="mic" class="w-4 h-4"></i> INICIAR GRABACIÓN`;
+                btn.classList.remove('animate-pulse');
+                status.classList.remove('border-red-500', 'shadow-[0_0_20px_red]');
+
+                log.innerHTML += `<br>> REC_STOP. ANALYZING WAVEFORM...`;
+                log.innerHTML += `<br><span class="text-cyan-400">> EXTRACTING VOCAL_DNA...</span>`;
+
+                // Simulate Extraction
+                setTimeout(() => {
+                    document.getElementById('dna-output').innerHTML = `
+                        <div class="flex justify-between text-cyan-400"><span>TONO BASE:</span> <span>BARÍTONO (110Hz)</span></div>
+                        <div class="flex justify-between text-cyan-400"><span>CADENCIA:</span> <span>RÁPIDA / AUTORITARIA</span></div>
+                        <div class="flex justify-between text-cyan-400"><span>EMOCIÓN:</span> <span>DETERMINACIÓN</span></div>
+                        <div class="mt-4 p-2 bg-green-900/20 border border-green-800 text-[10px] text-green-400">
+                            > ADN COMPATIBLE. INYECTANDO EN DAEMON.
+                        </div>
+                    `;
+                    log.innerHTML += `<br><span class="text-green-500">> SUCCESS. SYSTEM UPDATED.</span>`;
+                    log.scrollTop = log.scrollHeight;
+                }, 1500);
+            }
+            lucide.createIcons();
+        }
+
+        function visualizeAudio() {
+            if (!isRecording) return;
+
+            const canvas = document.getElementById('audio-canvas');
+            const ctx = canvas.getContext('2d');
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            canvas.width = canvas.parentElement.offsetWidth;
+            canvas.height = canvas.parentElement.offsetHeight;
+
+            function draw() {
+                if (!isRecording) return;
+                requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const barWidth = (canvas.width / bufferLength) * 2.5;
+                let barHeight;
+                let x = 0;
+
+                for(let i = 0; i < bufferLength; i++) {
+                    barHeight = dataArray[i] * 1.5;
+                    ctx.fillStyle = `rgb(${barHeight + 100}, 50, 50)`; // Red-ish bars for Thorne style
+                    if(barHeight > 200) ctx.fillStyle = `rgb(50, ${barHeight}, 255)`; // Blue for Letra peaks
+
+                    ctx.fillRect(x, canvas.height - barHeight / 2, barWidth, barHeight / 2);
+                    x += barWidth + 1;
+                }
+            }
+            draw();
+        }
+
+        // --- INIT ---
+        window.onload = () => {
+            lucide.createIcons();
+            renderSidebarContent();
+            loadScene(0);
+
+            // Chart Init
+            const ctx = document.getElementById('tensionChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['1', '2', '3', '4', '5', '6'],
+                    datasets: [{
+                        data: [10, 30, 50, 70, 90, 100],
+                        borderColor: '#06b6d4',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        tension: 0.4
+                    }, {
+                        data: [100, 90, 60, 40, 20, 0],
+                        borderColor: '#f43f5e',
+                        borderWidth: 2,
+                        pointRadius: 0,
+                        borderDash: [5, 5],
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: { x: { display: false }, y: { display: false } }
+                }
+            });
+        };
+    </script>
+</body>
+</html>
