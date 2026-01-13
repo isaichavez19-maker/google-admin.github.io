@@ -48,6 +48,8 @@
         class NexusEngine {
             constructor() {
                 this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.ws = null;
+                this.connectWebSocket();
 
                 // 1. REVERB CONVOLUTIVA (Generación de Espacio Sintético)
                 // En lugar de cargar un archivo, sintetizamos una respuesta de impulso (IR) matemática.
@@ -77,6 +79,22 @@
                 this.reverbGain.connect(this.limiter);
                 this.limiter.connect(this.analyser);
                 this.analyser.connect(this.ctx.destination);
+            }
+
+            connectWebSocket() {
+                this.ws = new WebSocket("ws://127.0.0.1:8081");
+                this.ws.onopen = () => console.log("Conectado al Puente WebSocket.");
+                this.ws.onerror = (err) => console.error("Error de WebSocket:", err);
+                this.ws.onclose = () => {
+                    console.log("Desconectado del Puente. Intentando reconectar en 2s...");
+                    setTimeout(() => this.connectWebSocket(), 2000);
+                };
+                this.ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    if (data.address === "/sistema/alerta") {
+                        triggerVisualNotification(data.value);
+                    }
+                };
             }
 
             // Algoritmo para crear "eco" matemático sin archivos externos
@@ -125,6 +143,17 @@
                     mod.frequency.value = 50;
                     modGain.gain.setValueAtTime(chaos * 2, t);
                     modGain.gain.linearRampToValueAtTime(0, t + 0.1);
+
+                    // Enviar señal OSC vía WebSocket
+                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
+                        const msg = {
+                            address: "/avatar/parameters/MGS_Kick",
+                            args: [
+                                { type: "f", value: alpha }
+                            ]
+                        };
+                        this.ws.send(JSON.stringify(msg));
+                    }
 
                     gain.gain.setValueAtTime(vol, t);
                     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
@@ -295,7 +324,7 @@
                     logSystem("SECUENCIADOR: PAUSA", "sys");
                 }
                 return () => cancelAnimationFrame(reqRef.current);
-            }, [isPlaying]);
+            }, [isPlaying, loop]);
 
             useEffect(() => {
                 lucide.createIcons();
@@ -482,6 +511,28 @@
 
         const root = ReactDOM.createRoot(document.getElementById('root'));
         root.render(<NexusV2 />);
+
+        function triggerVisualNotification(msg) {
+            // Crear un elemento flotante cyberpunk
+            const notif = document.createElement('div');
+            notif.innerText = `[REC] EVIDENCIA SECURED: ${msg}`;
+            notif.style.position = 'fixed';
+            notif.style.top = '20px';
+            notif.style.right = '20px';
+            notif.style.background = '#ff0055';
+            notif.style.color = '#fff';
+            notif.style.padding = '10px 20px';
+            notif.style.fontFamily = 'Courier New';
+            notif.style.border = '2px solid #fff';
+            notif.style.zIndex = '9999';
+
+            document.body.appendChild(notif);
+
+            // Eliminar después de 3 segundos
+            setTimeout(() => {
+                notif.remove();
+            }, 3000);
+        }
     </script>
 </body>
 </html>
