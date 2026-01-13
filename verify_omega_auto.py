@@ -6,7 +6,7 @@ import threading
 from playwright.async_api import async_playwright
 
 PORT = 8000
-SCREENSHOT_PATH = "omega_daw_v3_verification.png"
+SCREENSHOT_PATH = "omega_auto_verification.png"
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -24,15 +24,13 @@ async def main():
             page = await browser.new_page()
             try:
                 await page.goto(f"http://localhost:{PORT}/index.html")
-                await page.wait_for_selector("text=OMEGA_DAW")
+                await page.wait_for_selector("text=OMEGA_AUTO")
 
                 # Verify key UI elements are present
-                await page.get_by_text("KICK_DMZ", exact=True).wait_for()
-                await page.get_by_text("SNARE_SYNTH", exact=True).wait_for()
-                await page.get_by_text("HI_HATS_SEQ", exact=True).wait_for()
-                await page.get_by_text("BASS_LINE", exact=True).wait_for()
+                await page.get_by_text("KICK_MAIN", exact=True).wait_for()
+                await page.get_by_text("BASS_AUTO", exact=True).wait_for()
+                await page.get_by_text("HI_HATS", exact=True).wait_for()
                 await page.locator('[data-testid="play-pause-button"]').wait_for()
-                await page.locator('[data-testid="stop-button"]').wait_for()
 
                 print("All key UI elements found.")
 
