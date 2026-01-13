@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>VOX UMBREA: DAEMON EDITION</title>
+    <style>
+        /* ESTÉTICA: TIERRA VIVA + CYBERPUNK + GLITCH */
+        :root {
+            --bg: #050505;
+            --pad-off: #1a202c;
+            --pad-on: #9c4221; /* Terracota Sangre */
+            --text: #e2e8f0;
+            --accent: #00ffcc; /* Cian Protocolo */
+            --chaos: #ff0055; /* Magenta Error */
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: 'Courier New', monospace;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        /* CONSOLA SUPERIOR */
+        #console {
+            height: 15%;
+            padding: 10px;
+            border-bottom: 2px solid var(--pad-off);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent);
+            text-shadow: 0 0 5px rgba(0, 255, 204, 0.5);
+            white-space: pre-wrap;
+        }
+
+        /* GRILLA DE PADS */
+        #grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            grid-template-rows: repeat(4, 1fr);
+            gap: 6px;
+            padding: 10px;
+        }
+
+        .pad {
+            background-color: var(--pad-off);
+            border-radius: 6px;
+            border: 1px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: bold;
+            transition: transform 0.05s, background 0.1s;
+            user-select: none;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .pad::after {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(135deg, rgba(255,255,255,0.1) 0%, transparent 100%);
+            opacity: 0;
+            transition: opacity 0.1s;
+        }
+
+        .pad:active, .pad.active {
+            background-color: var(--pad-on);
+            transform: scale(0.96);
+            border-color: var(--text);
+            box-shadow: 0 0 20px rgba(156, 66, 33, 0.6);
+            color: #fff;
+        }
+
+        .pad.active::after { opacity: 1; }
+
+        /* MODOS ESPECIALES */
+        .glitch-mode {
+            border-color: var(--chaos);
+            color: var(--chaos);
+            background: rgba(255, 0, 85, 0.05);
+        }
+
+        .pad.glitch-active {
+            animation: shake 0.1s infinite;
+            background-color: var(--chaos) !important;
+            color: #fff !important;
+        }
+
+        @keyframes shake {
+            0% { transform: translate(1px, 1px) rotate(0deg); }
+            10% { transform: translate(-1px, -2px) rotate(-1deg); }
+            20% { transform: translate(-3px, 0px) rotate(1deg); }
+            30% { transform: translate(3px, 2px) rotate(0deg); }
+            40% { transform: translate(1px, -1px) rotate(1deg); }
+            50% { transform: translate(-1px, 2px) rotate(-1deg); }
+            60% { transform: translate(-3px, 1px) rotate(0deg); }
+            70% { transform: translate(3px, 1px) rotate(-1deg); }
+            80% { transform: translate(-1px, -1px) rotate(1deg); }
+            90% { transform: translate(1px, 2px) rotate(0deg); }
+            100% { transform: translate(1px, -2px) rotate(-1deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="console">
+        [SISTEMA ONLINE]<br>ESPERANDO INPUT...
+    </div>
+
+    <div id="grid">
+        <div class="pad" ontouchstart="play('kick', this)">KICK<br>808</div>
+        <div class="pad" ontouchstart="play('snare', this)">SNARE<br>WHT</div>
+        <div class="pad" ontouchstart="play('hihat', this)">HH<br>TIK</div>
+
+        <div class="pad" ontouchstart="play('guiro', this)">GÜIRO<br>SCRATCH</div>
+        <div class="pad" ontouchstart="play('cowbell', this)">CENCERRO<br>MET</div>
+        <div class="pad" ontouchstart="play('bass', this)">BAJO<br>SUB</div>
+
+        <div class="pad" ontouchstart="play('synth1', this)">ACORD<br>G (Sol)</div>
+        <div class="pad" ontouchstart="play('synth2', this)">ACORD<br>Bb (Si b)</div>
+        <div class="pad" ontouchstart="play('synth3', this)">ACORD<br>D (Re)</div>
+
+        <div class="pad glitch-mode" ontouchstart="dominusSpeak()">LOG<br>STATUS</div>
+        <div class="pad glitch-mode" ontouchstart="ultraGlitch(this)">ULTRA<br>GLITCH</div>
+        <div class="pad glitch-mode" ontouchstart="play('subdrop', this)">DROP<br>BOMB</div>
+    </div>
+
+    <script>
+        // --- 1. CONTEXTO DE AUDIO ---
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        const ctx = new AudioContext();
+
+        // --- 2. GENERADOR DE SONIDOS (MATEMÁTICA PURA) ---
+        function createOscillator(type, freq, duration, vol = 0.5, detune = 0) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = type;
+            osc.frequency.setValueAtTime(freq, ctx.currentTime);
+            if(detune !== 0) osc.detune.setValueAtTime(detune, ctx.currentTime);
+
+            // Envolvente (ADSR Simplificado)
+            gain.gain.setValueAtTime(0.01, ctx.currentTime);
+            gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.02); // Attack rápido
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration); // Decay
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start();
+            osc.stop(ctx.currentTime + duration + 0.1);
+        }
+
+        function createNoise(duration, type = 'white') {
+            const bufferSize = ctx.sampleRate * duration;
+            const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+            const data = buffer.getChannelData(0);
+
+            for (let i = 0; i < bufferSize; i++) {
+                // Ruido blanco puro vs Ruido "digital" (glitchy)
+                data[i] = Math.random() * 2 - 1;
+            }
+
+            const noise = ctx.createBufferSource();
+            noise.buffer = buffer;
+            const gain = ctx.createGain();
+
+            // Envolvente percusiva
+            gain.gain.setValueAtTime(0.3, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+
+            noise.connect(gain);
+            gain.connect(ctx.destination);
+            noise.start();
+        }
+
+        // --- 3. LA BENDICIÓN DEL DAEMON (TU CÓDIGO INTEGRADO) ---
+        function ultraGlitch(element) {
+            if (ctx.state === 'suspended') ctx.resume();
+
+            // FEEDBACK VISUAL AGRESIVO
+            element.classList.add('glitch-active');
+            document.body.style.filter = "invert(1) contrast(200%)";
+            document.getElementById('console').innerText = "FATAL ERROR\nSYSTEM HALTED";
+
+            // 1. EL CAOS (Ruido rosa modulado)
+            createNoise(0.6);
+
+            // 2. EL TARTAMUDEO (Tu LFO Code)
+            const masterOsc = ctx.createOscillator();
+            const masterGain = ctx.createGain();
+
+            masterOsc.type = 'sawtooth';
+            masterOsc.frequency.setValueAtTime(55, ctx.currentTime); // Tono bajo grave
+            masterOsc.frequency.linearRampToValueAtTime(20, ctx.currentTime + 0.5); // Slide down (Tape Stop)
+
+            // LFO DE CORTE (15Hz Stutter)
+            const lfo = ctx.createOscillator();
+            const lfoGain = ctx.createGain(); // Necesario para controlar la profundidad del LFO
+
+            lfo.type = 'square';
+            lfo.frequency.setValueAtTime(15, ctx.currentTime); // Velocidad del corte
+
+            // Ruteo: LFO -> Gain del Oscilador -> Salida
+            lfo.connect(masterGain.gain);
+            masterOsc.connect(masterGain);
+            masterGain.connect(ctx.destination);
+
+            lfo.start();
+            masterOsc.start();
+
+            // Detener todo
+            const stopTime = ctx.currentTime + 0.5;
+            lfo.stop(stopTime);
+            masterOsc.stop(stopTime);
+
+            // RESET VISUAL
+            setTimeout(() => {
+                document.body.style.filter = "none";
+                element.classList.remove('glitch-active');
+                document.getElementById('console').innerText = "[SISTEMA REINICIADO]";
+            }, 500);
+        }
+
+        // --- 4. MAPA DE SONIDOS ---
+        function play(sound, element) {
+            if (ctx.state === 'suspended') ctx.resume();
+
+            // Animación
+            element.classList.add('active');
+            setTimeout(() => element.classList.remove('active'), 80);
+
+            switch(sound) {
+                // --- BEATS ---
+                case 'kick':
+                    // Kick 808: Onda seno que cae de tono rápidamente
+                    const kOsc = ctx.createOscillator();
+                    const kGain = ctx.createGain();
+                    kOsc.frequency.setValueAtTime(150, ctx.currentTime);
+                    kOsc.frequency.exponentialRampToValueAtTime(40, ctx.currentTime + 0.5);
+                    kGain.gain.setValueAtTime(1, ctx.currentTime);
+                    kGain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
+                    kOsc.connect(kGain); kGain.connect(ctx.destination);
+                    kOsc.start(); kOsc.stop(ctx.currentTime + 0.5);
+                    break;
+                case 'snare':
+                    // Snare: Tono medio + Ruido
+                    createOscillator('triangle', 250, 0.1, 0.4);
+                    createNoise(0.15);
+                    break;
+                case 'hihat':
+                    // Hihat: Ruido muy corto y agudo (filtro paso alto simulado)
+                    createNoise(0.04);
+                    break;
+
+                // --- LATIN VIBES ---
+                case 'guiro':
+                    // Guiro: Ruido con envolvente "raspada"
+                    const gNoise = ctx.createBufferSource();
+                    const bSize = ctx.sampleRate * 0.1;
+                    const buff = ctx.createBuffer(1, bSize, ctx.sampleRate);
+                    const dat = buff.getChannelData(0);
+                    for(let i=0; i<bSize; i++) dat[i] = Math.random()*2-1;
+                    gNoise.buffer = buff;
+                    const gGain = ctx.createGain();
+                    // Envelope doble para simular "Ras-Pa"
+                    gGain.gain.setValueAtTime(0, ctx.currentTime);
+                    gGain.gain.linearRampToValueAtTime(0.5, ctx.currentTime+0.02);
+                    gGain.gain.linearRampToValueAtTime(0.1, ctx.currentTime+0.05);
+                    gGain.gain.linearRampToValueAtTime(0.4, ctx.currentTime+0.07);
+                    gGain.gain.linearRampToValueAtTime(0, ctx.currentTime+0.1);
+                    gNoise.connect(gGain); gGain.connect(ctx.destination);
+                    gNoise.start();
+                    break;
+                case 'cowbell':
+                    createOscillator('square', 600, 0.1, 0.3);
+                    createOscillator('square', 900, 0.1, 0.2); // Armónico
+                    break;
+                case 'bass':
+                    // Bajo Cumbiero: Onda cuadrada filtrada (más suave)
+                    createOscillator('square', 70, 0.3, 0.5);
+                    break;
+
+                // --- MELODÍA (Escala Menor de Sol - G Minor) ---
+                case 'synth1': createOscillator('sawtooth', 392.00, 0.4, 0.4); break; // G
+                case 'synth2': createOscillator('sawtooth', 466.16, 0.4, 0.4); break; // Bb
+                case 'synth3': createOscillator('sawtooth', 587.33, 0.4, 0.4); break; // D
+
+                // --- FX ---
+                case 'subdrop':
+                    const sOsc = ctx.createOscillator();
+                    const sGain = ctx.createGain();
+                    sOsc.frequency.setValueAtTime(80, ctx.currentTime);
+                    sOsc.frequency.exponentialRampToValueAtTime(10, ctx.currentTime + 1.5);
+                    sGain.gain.setValueAtTime(0.8, ctx.currentTime);
+                    sGain.gain.linearRampToValueAtTime(0, ctx.currentTime + 1.5);
+                    sOsc.connect(sGain); sGain.connect(ctx.destination);
+                    sOsc.start(); sOsc.stop(ctx.currentTime+1.5);
+                    break;
+            }
+        }
+
+        // --- 5. INTERACCIÓN DE DOMINUS ---
+        const phrases = [
+            "LA GRAVEDAD ES OPCIONAL.",
+            "THORNE NO PUEDE OÍR ESTO.",
+            "TU DOLOR ES DATOS.",
+            "CÓDIGO: CUMBIA_SAD_BOY.",
+            "ERROR EN EL SECTOR 7G.",
+            "SIGUE CAYENDO, LETRA."
+        ];
+
+        function dominusSpeak() {
+            const consoleDiv = document.getElementById('console');
+            const txt = phrases[Math.floor(Math.random() * phrases.length)];
+            consoleDiv.innerText = `> ${txt}`;
+            consoleDiv.style.color = "#ff0055";
+            setTimeout(() => consoleDiv.style.color = "var(--accent)", 300);
+        }
+    </script>
+</body>
+</html>
