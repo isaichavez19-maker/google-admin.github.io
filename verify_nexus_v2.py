@@ -6,7 +6,7 @@ import threading
 from playwright.async_api import async_playwright
 
 PORT = 8000
-SCREENSHOT_PATH = "nexus_verification.png"
+SCREENSHOT_PATH = "nexus_v2_verification.png"
 
 class Handler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
@@ -29,7 +29,7 @@ async def main():
                 # Verify key UI elements are present
                 await page.get_by_text("KICK_PRIME", exact=True).wait_for()
                 await page.get_by_text("SNARE_DATA", exact=True).wait_for()
-                await page.get_by_text("HH_GLITCH", exact=True).wait_for()
+                await page.get_by_text("HH_NEURAL", exact=True).wait_for()
                 await page.locator('[data-testid="play-pause-button"]').wait_for()
 
                 print("All key UI elements found.")
