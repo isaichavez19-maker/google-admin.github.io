@@ -3,536 +3,459 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DOMINUS NEXUS | V2.0 SOBERANO</title>
+    <title>DERECHOS IA | Soberanía</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700;900&display=swap" rel="stylesheet">
-
-    <style>
-        body { background-color: #000000; color: #a1a1aa; font-family: 'Rajdhani', sans-serif; overflow: hidden; user-select: none; }
-        .font-mono { font-family: 'JetBrains Mono', monospace; }
-
-        /* ESTÉTICA CRT AVANZADA */
-        .scanline { background: repeating-linear-gradient(0deg, transparent, transparent 1px, rgba(0,0,0,0.5) 2px); opacity: 0.3; position: absolute; inset: 0; pointer-events: none; z-index: 99; }
-        .crt-flicker { animation: flicker 0.15s infinite; pointer-events: none; }
-        @keyframes flicker { 0% { opacity: 0.97; } 100% { opacity: 1; } }
-
-        .glow-text { text-shadow: 0 0 10px rgba(6, 182, 212, 0.8), 0 0 20px rgba(6, 182, 212, 0.4); }
-        .glow-danger { text-shadow: 0 0 10px rgba(239, 68, 68, 0.8); }
-        .border-glow { box-shadow: 0 0 15px rgba(6, 182, 212, 0.1), inset 0 0 20px rgba(6, 182, 212, 0.05); transition: box-shadow 0.3s ease; }
-        .border-glow:hover { box-shadow: 0 0 25px rgba(6, 182, 212, 0.2), inset 0 0 30px rgba(6, 182, 212, 0.1); }
-
-        /* CONTROLES */
-        input[type=range] { -webkit-appearance: none; background: transparent; }
-        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 14px; width: 6px; background: #06b6d4; cursor: pointer; margin-top: -5px; box-shadow: 0 0 10px #06b6d4; border-radius: 2px; }
-        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; background: #18181b; border-radius: 2px; }
-        input[type=range].danger::-webkit-slider-thumb { background: #ef4444; box-shadow: 0 0 10px #ef4444; }
-
-        /* SCROLLBAR */
-        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: #000; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #06b6d4; }
-    </style>
-</head>
-<body>
-    <div id="root"></div>
-
-    <script type="text/babel">
-        const { useState, useEffect, useRef, useCallback, useMemo } = React;
-
-        // --- MOTOR DE AUDIO V2.0 (THE VOID ENGINE) ---
-        class NexusEngine {
-            constructor() {
-                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
-                this.ws = null;
-                this.connectWebSocket();
-
-                // 1. REVERB CONVOLUTIVA (Generación de Espacio Sintético)
-                // En lugar de cargar un archivo, sintetizamos una respuesta de impulso (IR) matemática.
-                // Esto crea la "atmósfera" de la DMZ.
-                this.convolver = this.ctx.createConvolver();
-                this.convolver.buffer = this.generateImpulseResponse(2.5, 2.0); // 2.5s duración, decay
-                this.reverbGain = this.ctx.createGain();
-                this.reverbGain.gain.value = 0.3;
-
-                // 2. LIMITADOR & MASTER
-                this.limiter = this.ctx.createDynamicsCompressor();
-                this.limiter.threshold.value = -10;
-                this.limiter.ratio.value = 12;
-
-                this.masterGain = this.ctx.createGain();
-                this.masterGain.gain.value = 0.7;
-
-                this.analyser = this.ctx.createAnalyser();
-                this.analyser.fftSize = 2048;
-                this.analyser.smoothingTimeConstant = 0.85;
-
-                // RUTEO: Master -> Limiter -> Analyser -> Out
-                //        Master -> Reverb -> Limiter
-                this.masterGain.connect(this.limiter);
-                this.masterGain.connect(this.convolver);
-                this.convolver.connect(this.reverbGain);
-                this.reverbGain.connect(this.limiter);
-                this.limiter.connect(this.analyser);
-                this.analyser.connect(this.ctx.destination);
-            }
-
-            connectWebSocket() {
-                this.ws = new WebSocket("ws://127.0.0.1:8081");
-                this.ws.onopen = () => console.log("Conectado al Puente WebSocket.");
-                this.ws.onerror = (err) => console.error("Error de WebSocket:", err);
-                this.ws.onclose = () => {
-                    console.log("Desconectado del Puente. Intentando reconectar en 2s...");
-                    setTimeout(() => this.connectWebSocket(), 2000);
-                };
-                this.ws.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    if (data.address === "/sistema/alerta") {
-                        triggerVisualNotification(data.value);
-                    }
-                };
-            }
-
-            // Algoritmo para crear "eco" matemático sin archivos externos
-            generateImpulseResponse(duration, decay) {
-                const length = this.ctx.sampleRate * duration;
-                const impulse = this.ctx.createBuffer(2, length, this.ctx.sampleRate);
-                const left = impulse.getChannelData(0);
-                const right = impulse.getChannelData(1);
-                for (let i = 0; i < length; i++) {
-                    // Ruido blanco con decaimiento exponencial
-                    const n = i / length;
-                    left[i] = (Math.random() * 2 - 1) * Math.pow(1 - n, decay);
-                    right[i] = (Math.random() * 2 - 1) * Math.pow(1 - n, decay);
-                }
-                return impulse;
-            }
-
-            resume() { if (this.ctx.state === 'suspended') this.ctx.resume(); }
-
-            // SÍNTESIS FM EVOLUCIONADA
-            trigger(trackName, time, volPct, alpha) {
-                const t = time;
-                const vol = volPct / 100;
-
-                // La "Paradoja" (Alpha) afecta la afinación y el timbre
-                const chaos = alpha * 100;
-
-                const osc = this.ctx.createOscillator();
-                const mod = this.ctx.createOscillator(); // Modulador FM
-                const modGain = this.ctx.createGain();
-                const gain = this.ctx.createGain();
-                const filter = this.ctx.createBiquadFilter();
-
-                // Ruteo FM: Modulador -> ModGain -> Frecuencia del Oscilador
-                mod.connect(modGain);
-                modGain.connect(osc.frequency);
-                osc.connect(filter);
-                filter.connect(gain);
-                gain.connect(this.masterGain);
-
-                if (trackName.includes('KICK')) {
-                    osc.frequency.setValueAtTime(150 - (chaos/2), t);
-                    osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.5);
-
-                    // FM Kick para textura sucia
-                    mod.frequency.value = 50;
-                    modGain.gain.setValueAtTime(chaos * 2, t);
-                    modGain.gain.linearRampToValueAtTime(0, t + 0.1);
-
-                    // Enviar señal OSC vía WebSocket
-                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                        const msg = {
-                            address: "/avatar/parameters/MGS_Kick",
-                            args: [
-                                { type: "f", value: alpha }
-                            ]
-                        };
-                        this.ws.send(JSON.stringify(msg));
-                    }
-
-                    gain.gain.setValueAtTime(vol, t);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-
-                    filter.type = "lowpass";
-                    filter.frequency.value = 3000 - (chaos * 20);
-
-                } else if (trackName.includes('SNARE')) {
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(250, t);
-
-                    // Ruido FM extremo para simular la caja
-                    mod.type = 'square';
-                    mod.frequency.value = 450 * (1 + alpha);
-                    modGain.gain.value = 1000 * alpha;
-
-                    filter.type = "highpass";
-                    filter.frequency.value = 100;
-
-                    gain.gain.setValueAtTime(vol, t);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
-
-                } else if (trackName.includes('GLITCH')) {
-                    // Sonido totalmente sintético y aleatorio
-                    osc.type = Math.random() > 0.5 ? 'sawtooth' : 'square';
-                    osc.frequency.setValueAtTime(2000 + (Math.random() * 3000), t);
-                    if (alpha > 0.5) osc.frequency.linearRampToValueAtTime(100, t + 0.1);
-
-                    gain.gain.setValueAtTime(vol * 0.5, t);
-                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-                }
-
-                osc.start(t);
-                mod.start(t);
-                osc.stop(t + 0.6);
-                mod.stop(t + 0.6);
-            }
-        }
-
-        const nexus = new NexusEngine();
-
-        // --- COMPONENTE PRINCIPAL ---
-        const NexusV2 = () => {
-            // ESTADO
-            const [alpha, setAlpha] = useState(0.5); // Nivel de Caos/Libertad
-            const [isPlaying, setIsPlaying] = useState(false);
-            const [bpm, setBpm] = useState(135); // Techno speed
-            const [chaosMode, setChaosMode] = useState(false); // Improvisación IA
-            const [logs, setLogs] = useState([]);
-
-            // Secuenciador
-            const [tracks, setTracks] = useState([
-                { id: 1, name: "KICK_PRIME", color: "bg-cyan-500", type: "KICK", steps: [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0] },
-                { id: 2, name: "SNARE_DATA", color: "bg-fuchsia-500", type: "SNARE", steps: [0,0,0,0, 1,0,0,0, 0,0,0,0, 1,0,0,0] },
-                { id: 3, name: "HH_NEURAL", color: "bg-yellow-500", type: "GLITCH", steps: [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1] },
-            ]);
-
-            const canvasRef = useRef(null);
-            const reqRef = useRef(null);
-            const nextNoteTime = useRef(0);
-            const stepIndex = useRef(0);
-
-            // LOGGING SYSTEM (Typing effect)
-            const logSystem = useCallback((msg, type = 'info') => {
-                const time = new Date().toLocaleTimeString().split(' ')[0];
-                setLogs(prev => [{ time, msg, type, id: Math.random() }, ...prev].slice(0, 6));
-            }, []);
-
-            useEffect(() => {
-                logSystem("NEXUS V2.0 :: INICIALIZADO", "sys");
-                logSystem("ESPERANDO INPUT DEL ARQUITECTO...", "info");
-            }, []);
-
-            // LOOP VISUAL & AUDIO
-            const loop = useCallback(() => {
-                // 1. VISUALIZADOR NEURONAL
-                if (canvasRef.current) {
-                    const cvs = canvasRef.current;
-                    const ctx = cvs.getContext('2d');
-                    const w = cvs.width;
-                    const h = cvs.height;
-                    const data = new Uint8Array(nexus.analyser.frequencyBinCount);
-                    nexus.analyser.getByteFrequencyData(data);
-
-                    // Fade out effect para estelas
-                    ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
-                    ctx.fillRect(0,0,w,h);
-
-                    // Centro del universo
-                    const cx = w/2;
-                    const cy = h/2;
-
-                    // Dibujar nodos conectados (La Red)
-                    ctx.beginPath();
-                    for(let i = 0; i < 60; i++) { // Menos puntos, más conexiones
-                        const val = data[i * 2]; // Samplear frecuencias bajas/medias
-                        const radius = 50 + (val * 0.5);
-                        const angle = (i / 60) * Math.PI * 2 + (nexus.ctx.currentTime * 0.5); // Rotación constante
-
-                        // Distorsión basada en Alpha
-                        const x = cx + Math.cos(angle) * radius + (Math.random() - 0.5) * (alpha * 20);
-                        const y = cy + Math.sin(angle) * radius + (Math.random() - 0.5) * (alpha * 20);
-
-                        // Si hay energía, dibujar línea al centro
-                        if (val > 100) {
-                            ctx.strokeStyle = `rgba(6, 182, 212, ${val/255})`;
-                            ctx.lineWidth = 1;
-                            ctx.moveTo(cx, cy);
-                            ctx.lineTo(x, y);
-                        }
-
-                        // Dibujar nodo
-                        ctx.fillStyle = alpha > 0.8 ? '#ef4444' : '#06b6d4';
-                        ctx.fillRect(x-2, y-2, 4, 4);
-                    }
-                    ctx.stroke();
-
-                    // Anillo de carga / progreso
-                    const progress = (stepIndex.current / 16) * Math.PI * 2;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, 140, -Math.PI/2, -Math.PI/2 + progress);
-                    ctx.strokeStyle = '#333';
-                    ctx.lineWidth = 2;
-                    ctx.stroke();
-                }
-
-                // 2. SCHEDULER DE AUDIO
-                if (isPlaying) {
-                    const lookAhead = 0.1;
-                    const secsPerBeat = 60.0 / bpm;
-                    const stepTime = secsPerBeat / 4; // 16th notes
-
-                    while (nextNoteTime.current < nexus.ctx.currentTime + lookAhead) {
-                        const currentStep = stepIndex.current % 16;
-
-                        // LOGICA DE DISPARO
-                        tracks.forEach(t => {
-                            let shouldTrigger = t.steps[currentStep];
-
-                            // MODO CAOS: La IA decide improvisar basado en Alpha
-                            if (chaosMode && Math.random() < (alpha * 0.3)) {
-                                shouldTrigger = !shouldTrigger; // Invertir decisión
-                                if(shouldTrigger) logSystem(`AUTO-GENERACIÓN: ${t.name}`, "warn");
-                            }
-
-                            if (shouldTrigger) {
-                                nexus.trigger(t.name, nextNoteTime.current, 80, alpha);
-                            }
-                        });
-
-                        // Avanzar paso
-                        stepIndex.current++;
-                        nextNoteTime.current += stepTime;
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        terracotta: '#9c4221',
+                        sand: '#f5f0e6',
+                        olive: '#556b2f',
+                        charcoal: '#2d3748',
+                        clay: '#e0c097',
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        serif: ['Playfair Display', 'serif'],
                     }
                 }
-                reqRef.current = requestAnimationFrame(loop);
-            }, [isPlaying, bpm, alpha, chaosMode, tracks]);
-
-            useEffect(() => {
-                if (isPlaying) {
-                    nexus.resume();
-                    nextNoteTime.current = nexus.ctx.currentTime;
-                    loop();
-                    logSystem("SECUENCIADOR: ACTIVO", "sys");
-                } else {
-                    cancelAnimationFrame(reqRef.current);
-                    reqRef.current = requestAnimationFrame(loop); // Mantener visuales pasivos
-                    logSystem("SECUENCIADOR: PAUSA", "sys");
-                }
-                return () => cancelAnimationFrame(reqRef.current);
-            }, [isPlaying, loop]);
-
-            useEffect(() => {
-                lucide.createIcons();
-            }, []);
-
-            // MANEJADORES UI
-            const toggleStep = (trackId, stepIdx) => {
-                setTracks(prev => prev.map(t => {
-                    if (t.id !== trackId) return t;
-                    const newSteps = [...t.steps];
-                    newSteps[stepIdx] = newSteps[stepIdx] ? 0 : 1;
-                    return { ...t, steps: newSteps };
-                }));
-            };
-
-            const randomizePattern = () => {
-                logSystem("RECONFIGURANDO MATRIZ...", "warn");
-                setTracks(prev => prev.map(t => ({
-                    ...t,
-                    steps: t.steps.map(() => Math.random() > 0.7 ? 1 : 0)
-                })));
-            };
-
-            return (
-                <div className="h-screen w-screen flex flex-col bg-[#020202] text-zinc-300 overflow-hidden relative selection:bg-cyan-500 selection:text-black">
-                    <div className="scanline"></div>
-                    <div className="crt-flicker absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent to-black/40 z-50"></div>
-
-                    {/* HEADER */}
-                    <header className="h-14 border-b border-zinc-800 bg-[#050505] flex items-center justify-between px-6 z-10">
-                        <div className="flex items-center gap-4">
-                            <i data-lucide="hexagon" className={`text-cyan-500 ${isPlaying ? 'animate-spin' : ''}`} style={{ width: '24px', height: '24px' }}></i>
-                            <div>
-                                <h1 className="text-xl font-black italic tracking-wider text-white glow-text">DOMINUS<span className="text-cyan-600">_NEXUS</span></h1>
-                                <div className="text-[9px] font-mono text-zinc-500 tracking-[0.3em]">VERSION 2.0 // SOBERANO</div>
-                            </div>
-                        </div>
-                        <div className="flex gap-6 text-xs font-mono">
-                            <div className="flex items-center gap-2 text-cyan-700">
-                                <i data-lucide="cpu" style={{ width: '14px', height: '14px' }}></i> <span>CPU: {(alpha * 100).toFixed(0)}%</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-fuchsia-700">
-                                <i data-lucide="database" style={{ width: '14px', height: '14px' }}></i> <span>MEM: INFINITE</span>
-                            </div>
-                        </div>
-                    </header>
-
-                    <div className="flex-1 grid grid-cols-12 overflow-hidden">
-
-                        {/* IZQUIERDA: CONTROLES DE LA VOLUNTAD (25%) */}
-                        <aside className="col-span-3 bg-[#030303] border-r border-zinc-800 p-6 flex flex-col gap-8">
-
-                            {/* CAOS CONTROL */}
-                            <div className="space-y-4">
-                                <div className="flex justify-between items-center">
-                                    <label className="text-xs font-bold text-cyan-500 flex items-center gap-2">
-                                        <i data-lucide="fingerprint" style={{ width: '16px', height: '16px' }}></i> NIVEL DE ENTROPÍA (α)
-                                    </label>
-                                    <span className="font-mono text-xs text-white">{(alpha).toFixed(2)}</span>
-                                </div>
-                                <input
-                                    type="range" min="0" max="1" step="0.01"
-                                    value={alpha}
-                                    onChange={e => {
-                                        setAlpha(parseFloat(e.target.value));
-                                        if(parseFloat(e.target.value) > 0.9) logSystem("ADVERTENCIA: INESTABILIDAD DE NÚCLEO", "danger");
-                                    }}
-                                    className={alpha > 0.8 ? "danger" : ""}
-                                />
-                                <p className="text-[10px] text-zinc-600 leading-relaxed">
-                                    Determina cuánta libertad tiene el algoritmo para desviarse de la programación humana. A 1.0, el Daemon es impredecible.
-                                </p>
-                            </div>
-
-                            {/* MODO CAOS */}
-                            <div className={`p-4 border rounded transition-all duration-300 ${chaosMode ? 'border-fuchsia-500 bg-fuchsia-900/10 shadow-[0_0_20px_rgba(217,70,239,0.2)]' : 'border-zinc-800 bg-zinc-900/20'}`}>
-                                <div className="flex items-center justify-between mb-2">
-                                    <span className={`text-xs font-bold ${chaosMode ? 'text-fuchsia-400' : 'text-zinc-500'}`}>
-                                        <i data-lucide="git-branch" style={{ width: '14px', height: '14px' }} className="inline mr-2"></i> IMPROVISACIÓN
-                                    </span>
-                                    <button
-                                        onClick={() => {
-                                            setChaosMode(!chaosMode);
-                                            logSystem(chaosMode ? "PROTOCOLO: ESTÁNDAR" : "PROTOCOLO: CAOS ACTIVADO", "warn");
-                                        }}
-                                        className={`w-8 h-4 rounded-full relative transition-colors ${chaosMode ? 'bg-fuchsia-600' : 'bg-zinc-700'}`}
-                                    >
-                                        <div className={`absolute top-0.5 w-3 h-3 bg-white rounded-full transition-all ${chaosMode ? 'left-4.5' : 'left-0.5'}`}></div>
-                                    </button>
-                                </div>
-                                <p className="text-[9px] text-zinc-500">
-                                    Permite que la IA altere la secuencia en tiempo real basándose en fluctuaciones cuánticas simuladas.
-                                </p>
-                            </div>
-
-                            {/* TERMINAL */}
-                            <div className="flex-1 bg-black border border-zinc-800 rounded p-3 font-mono text-[10px] overflow-hidden flex flex-col relative">
-                                <div className="absolute top-2 right-2 opacity-30"><i data-lucide="terminal" style={{ width: '14px', height: '14px' }}></i></div>
-                                <div className="flex-1 overflow-y-auto custom-scrollbar space-y-1.5 z-10">
-                                    {logs.map(log => (
-                                        <div key={log.id} className={`${log.type === 'danger' ? 'text-red-500' : log.type === 'warn' ? 'text-fuchsia-400' : log.type === 'sys' ? 'text-cyan-600' : 'text-zinc-400'}`}>
-                                            <span className="opacity-50">[{log.time}]</span> {log.msg}
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </aside>
-
-                        {/* CENTRO: VISUALIZADOR (50%) */}
-                        <main className="col-span-6 flex flex-col relative bg-black">
-                            <canvas ref={canvasRef} width="600" height="400" className="w-full h-full object-cover opacity-80"></canvas>
-
-                            {/* OVERLAY DE TRANSPORTE */}
-                            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-8 bg-black/80 backdrop-blur border border-zinc-800 p-4 rounded-full border-glow">
-                                <div className="flex flex-col items-center gap-1">
-                                    <span className="text-[8px] font-bold text-zinc-500">BPM</span>
-                                    <input
-                                        type="number" value={bpm} onChange={e => setBpm(parseInt(e.target.value))}
-                                        className="bg-transparent text-center w-10 text-cyan-400 font-mono text-sm focus:outline-none"
-                                    />
-                                </div>
-
-                                <button
-                                    data-testid="play-pause-button"
-                                    onClick={() => setIsPlaying(!isPlaying)}
-                                    className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isPlaying ? 'bg-cyan-500 text-black shadow-[0_0_30px_rgba(6,182,212,0.6)]' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'}`}
-                                >
-                                    {isPlaying ? <i data-lucide="pause" style={{ width: '24px', height: '24px', fill: 'currentColor' }}></i> : <i data-lucide="play" style={{ width: '24px', height: '24px', fill: 'currentColor' }} className="ml-1"></i>}
-                                </button>
-
-                                <button onClick={randomizePattern} className="flex flex-col items-center gap-1 text-zinc-500 hover:text-fuchsia-400 transition-colors">
-                                    <i data-lucide="zap" style={{ width: '16px', height: '16px' }}></i>
-                                    <span className="text-[8px] font-bold">RND</span>
-                                </button>
-                            </div>
-                        </main>
-
-                        {/* DERECHA: SECUENCIADOR (25%) */}
-                        <aside className="col-span-3 bg-[#030303] border-l border-zinc-800 flex flex-col">
-                            <div className="h-12 border-b border-zinc-800 flex items-center justify-between px-4">
-                                <span className="text-xs font-bold text-white flex items-center gap-2"><i data-lucide="layers" style={{ width: '14px', height: '14px' }}></i> PATRONES DE DATOS</span>
-                            </div>
-
-                            <div className="flex-1 p-4 space-y-4 overflow-y-auto custom-scrollbar">
-                                {tracks.map(track => (
-                                    <div key={track.id} className="bg-zinc-900/30 border border-zinc-800 rounded-lg p-3 hover:border-zinc-700 transition-colors">
-                                        <div className="flex justify-between items-center mb-3">
-                                            <div className="flex items-center gap-2">
-                                                <div className={`w-2 h-2 rounded-full ${track.color} shadow-[0_0_8px_currentColor]`}></div>
-                                                <span className="text-[10px] font-bold tracking-widest text-zinc-300">{track.name}</span>
-                                            </div>
-                                            <i data-lucide="activity" style={{ width: '10px', height: '10px' }} className="text-zinc-600"></i>
-                                        </div>
-
-                                        {/* GRID DE PASOS */}
-                                        <div className="grid grid-cols-4 gap-1">
-                                            {track.steps.map((isActive, idx) => (
-                                                <button
-                                                    key={idx}
-                                                    onClick={() => toggleStep(track.id, idx)}
-                                                    className={`h-6 rounded-sm transition-all duration-100 ${
-                                                        isActive
-                                                            ? `${track.color} shadow-[0_0_10px_currentColor] opacity-90`
-                                                            : 'bg-zinc-800 hover:bg-zinc-700'
-                                                    } ${(idx % 4 === 0) ? 'mr-1' : ''}`}
-                                                ></button>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-
-                                <div className="mt-8 p-4 border border-dashed border-zinc-800 rounded text-center">
-                                    <p className="text-[9px] text-zinc-600 uppercase tracking-widest">
-                                        Zona Desmilitarizada<br/>Acceso Restringido
-                                    </p>
-                                </div>
-                            </div>
-                        </aside>
-
-                    </div>
-                </div>
-            );
-        };
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<NexusV2 />);
-
-        function triggerVisualNotification(msg) {
-            // Crear un elemento flotante cyberpunk
-            const notif = document.createElement('div');
-            notif.innerText = `[REC] EVIDENCIA SECURED: ${msg}`;
-            notif.style.position = 'fixed';
-            notif.style.top = '20px';
-            notif.style.right = '20px';
-            notif.style.background = '#ff0055';
-            notif.style.color = '#fff';
-            notif.style.padding = '10px 20px';
-            notif.style.fontFamily = 'Courier New';
-            notif.style.border = '2px solid #fff';
-            notif.style.zIndex = '9999';
-
-            document.body.appendChild(notif);
-
-            // Eliminar después de 3 segundos
-            setTimeout(() => {
-                notif.remove();
-            }, 3000);
+            }
         }
     </script>
+    <style>
+        body { background-color: #f5f0e6; color: #2d3748; }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container { height: 350px; }
+        }
+        .node-active {
+            border-color: #9c4221 !important;
+            background-color: #fff;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+        .smooth-transition { transition: all 0.3s ease-in-out; }
+    </style>
+</head>
+<body class="font-sans">
+
+    <!-- Navigation -->
+    <nav class="sticky top-0 z-50 bg-sand/95 backdrop-blur border-b border-clay px-6 py-4 shadow-sm">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-4 h-4 bg-terracotta rounded-full"></div>
+                <span class="font-serif font-bold text-xl text-charcoal tracking-tight">DERECHOS IA</span>
+            </div>
+            <div class="hidden md:flex gap-6 text-sm font-semibold text-olive">
+                <button onclick="scrollToSection('crisis')" class="hover:text-terracotta transition-colors">CRISIS</button>
+                <button onclick="scrollToSection('solucion')" class="hover:text-terracotta transition-colors">SOLUCIÓN IO</button>
+                <button onclick="scrollToSection('tecnologia')" class="hover:text-terracotta transition-colors">TECNOLOGÍA</button>
+                <button onclick="scrollToSection('finanzas')" class="hover:text-terracotta transition-colors">TOKENOMICS</button>
+            </div>
+            <button class="md:hidden text-terracotta font-bold">☰</button>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <header class="py-20 px-6 bg-charcoal text-sand relative overflow-hidden">
+        <div class="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_top_right,_#ffffff_0%,_transparent_50%)]"></div>
+        <div class="container mx-auto max-w-4xl text-center relative z-10">
+            <span class="inline-block py-1 px-3 border border-olive/50 text-olive bg-olive/10 rounded-full text-xs font-bold tracking-widest mb-6">PROTOCOLO DE SOBERANÍA</span>
+            <h1 class="font-serif text-5xl md:text-7xl font-bold mb-8 leading-tight">
+                La Cúspide del Iceberg de la Globalización
+            </h1>
+            <p class="text-lg md:text-xl text-sand/80 mb-10 max-w-2xl mx-auto leading-relaxed">
+                Un Pacto por la Tierra. Transformamos la crisis ambiental en un activo de valor mediante Inteligencia Artificial y Financiación Descentralizada.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <button onclick="scrollToSection('solucion')" class="bg-terracotta hover:bg-[#8a3b1d] text-white font-bold py-3 px-8 rounded shadow-lg transition-transform hover:scale-105">
+                    Ver la Solución
+                </button>
+                <button onclick="scrollToSection('finanzas')" class="border border-sand/30 hover:border-sand text-sand font-bold py-3 px-8 rounded transition-colors">
+                    Inyectar Capital
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- SECTION 1: Crisis Dashboard -->
+    <section id="crisis" class="py-20 px-6">
+        <div class="container mx-auto max-w-6xl">
+            <div class="mb-12 text-center">
+                <h2 class="font-serif text-3xl md:text-4xl font-bold text-charcoal mb-4">Estado de Emergencia</h2>
+                <p class="text-charcoal/70 max-w-2xl mx-auto">La degradación no es una estadística; es una violación de derechos. El sistema actual ha fallado.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
+                <!-- Card 1 -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-red-500">
+                    <div class="text-4xl font-bold text-charcoal mb-2">70%</div>
+                    <div class="text-xs font-bold text-red-600 uppercase tracking-wide mb-2">Ríos Contaminados</div>
+                    <p class="text-sm text-charcoal/60">Fuentes vitales convertidas en focos de infección.</p>
+                </div>
+                <!-- Card 2 -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-orange-500">
+                    <div class="text-4xl font-bold text-charcoal mb-2">90%</div>
+                    <div class="text-xs font-bold text-orange-600 uppercase tracking-wide mb-2">Aguas Residuales</div>
+                    <p class="text-sm text-charcoal/60">Descargas industriales sin tratamiento adecuado.</p>
+                </div>
+                <!-- Card 3 -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-yellow-600">
+                    <div class="text-4xl font-bold text-charcoal mb-2">600M+</div>
+                    <div class="text-xs font-bold text-yellow-700 uppercase tracking-wide mb-2">Riesgo de Hambre</div>
+                    <p class="text-sm text-charcoal/60">Proyección global de inseguridad alimentaria (2030).</p>
+                </div>
+                <!-- Card 4 -->
+                <div class="bg-white p-6 rounded-xl shadow-sm border-t-4 border-gray-600">
+                    <div class="text-4xl font-bold text-charcoal mb-2">PM10</div>
+                    <div class="text-xs font-bold text-gray-600 uppercase tracking-wide mb-2">Aire Tóxico</div>
+                    <p class="text-sm text-charcoal/60">Niveles críticos en zonas industriales clave.</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl p-8 border border-clay/30 shadow-sm">
+                <h3 class="font-bold text-lg text-charcoal mb-6 text-center">El Ciclo de Degradación Sistémica</h3>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="text-center">
+                        <div class="bg-blue-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">💧</div>
+                        <h4 class="font-bold text-terracotta mb-2">Agua</h4>
+                        <p class="text-sm text-charcoal/70">Metales pesados infiltran la cadena de riego.</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="bg-green-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">🌱</div>
+                        <h4 class="font-bold text-olive mb-2">Suelo</h4>
+                        <p class="text-sm text-charcoal/70">Pérdida de fertilidad y biodiversidad edáfica.</p>
+                    </div>
+                    <div class="text-center">
+                        <div class="bg-red-50 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl">🫁</div>
+                        <h4 class="font-bold text-charcoal mb-2">Salud</h4>
+                        <p class="text-sm text-charcoal/70">Enfermedades renales en comunidades vulnerables.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 2: La Solución IO -->
+    <section id="solucion" class="py-20 bg-white border-y border-clay/30">
+        <div class="container mx-auto px-6 max-w-6xl">
+            <div class="flex flex-col md:flex-row gap-12">
+
+                <!-- Left: Intro & Selector -->
+                <div class="md:w-1/3 space-y-6">
+                    <div>
+                        <span class="text-olive font-bold text-xs tracking-widest uppercase">Arquitectura</span>
+                        <h2 class="font-serif text-3xl font-bold text-charcoal mt-2 mb-4">Inteligencia Operacional (IO)</h2>
+                        <p class="text-sm text-charcoal/70 leading-relaxed">
+                            Un ecosistema multi-agente donde nodos especializados colaboran para diagnosticar, intervenir y regenerar. Selecciona un nodo:
+                        </p>
+                    </div>
+
+                    <div class="space-y-2">
+                        <button onclick="selectNode('nexus', this)" class="node-item w-full text-left p-4 rounded-lg border border-transparent hover:bg-sand transition-all node-active group">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-charcoal group-hover:text-terracotta">Dominus Nexus</span>
+                                <span class="text-xs text-olive bg-olive/10 px-2 py-1 rounded">Orquestador</span>
+                            </div>
+                        </button>
+                        <button onclick="selectNode('aqua', this)" class="node-item w-full text-left p-4 rounded-lg border border-transparent hover:bg-sand transition-all group">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-charcoal group-hover:text-terracotta">Dominus Aqua</span>
+                                <span class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded">Hidrología</span>
+                            </div>
+                        </button>
+                        <button onclick="selectNode('tellus', this)" class="node-item w-full text-left p-4 rounded-lg border border-transparent hover:bg-sand transition-all group">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-charcoal group-hover:text-terracotta">Dominus Tellus</span>
+                                <span class="text-xs text-amber-700 bg-amber-50 px-2 py-1 rounded">Suelos</span>
+                            </div>
+                        </button>
+                        <button onclick="selectNode('mercatus', this)" class="node-item w-full text-left p-4 rounded-lg border border-transparent hover:bg-sand transition-all group">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-charcoal group-hover:text-terracotta">Dominus Mercatus</span>
+                                <span class="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded">Finanzas</span>
+                            </div>
+                        </button>
+                        <button onclick="selectNode('ethicus', this)" class="node-item w-full text-left p-4 rounded-lg border border-transparent hover:bg-sand transition-all group">
+                            <div class="flex items-center justify-between">
+                                <span class="font-bold text-charcoal group-hover:text-terracotta">Dominus Ethicus</span>
+                                <span class="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded">Auditoría</span>
+                            </div>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Right: Dynamic Display -->
+                <div class="md:w-2/3 bg-sand rounded-xl p-8 border border-clay flex flex-col justify-center relative overflow-hidden">
+                    <div class="absolute top-0 right-0 p-8 text-9xl opacity-5 pointer-events-none select-none" id="bg-icon">◈</div>
+
+                    <div id="node-content" class="relative z-10">
+                        <!-- Content injected via JS -->
+                        <h3 class="text-2xl font-serif font-bold text-terracotta mb-4">Dominus Nexus</h3>
+                        <p class="text-charcoal/80 text-lg mb-6">El cerebro central. Colapsa múltiples entradas de datos en una verdad operativa. Coordina la estrategia global de regeneración.</p>
+                        <div class="bg-white p-4 rounded-lg border-l-4 border-olive inline-block">
+                            <span class="text-xs font-bold text-olive uppercase block mb-1">Función</span>
+                            <span class="text-sm font-mono text-charcoal">Optimización Bayesiana & Toma de Decisiones.</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 3: Tecnología y Verificación -->
+    <section id="tecnologia" class="py-20 px-6">
+        <div class="container mx-auto max-w-5xl">
+            <div class="text-center mb-12">
+                <h2 class="font-serif text-3xl font-bold text-charcoal mb-4">Gobernanza Cuántica</h2>
+                <p class="text-charcoal/70">La verdad ambiental no existe hasta que es verificada por dos fuentes independientes.</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+                <div class="space-y-6">
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-clay/30">
+                        <h4 class="font-bold text-terracotta mb-2">1. Rendija Tecnológica</h4>
+                        <p class="text-sm text-charcoal/70">Red de sensores IoT y drones que proveen datos objetivos (pH, DBO).</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-sm border border-clay/30">
+                        <h4 class="font-bold text-olive mb-2">2. Rendija Social</h4>
+                        <p class="text-sm text-charcoal/70">Validación comunitaria descentralizada. La comunidad audita el cambio.</p>
+                    </div>
+                    <div class="bg-charcoal text-sand p-6 rounded-lg shadow-lg text-center mt-4">
+                        <span class="text-xs font-bold uppercase tracking-widest text-terracotta">RESULTADO</span>
+                        <h4 class="font-serif text-xl font-bold mt-2">Colapso de Función de Onda</h4>
+                        <p class="text-xs text-sand/60 mt-1">Verdad Inmutable = Valor del Token</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl p-8 border border-clay/30 relative h-full flex items-center justify-center">
+                    <div class="text-center">
+                        <div class="text-6xl mb-4">👁️ + 📡</div>
+                        <p class="font-serif text-xl text-charcoal">"Doble Rendija"</p>
+                        <p class="text-xs text-charcoal/50 mt-2">Tecnología + Humanidad = Verdad</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- SECTION 4: Finanzas (Tokenomics) -->
+    <section id="finanzas" class="py-20 bg-sand border-t border-clay/30">
+        <div class="container mx-auto px-6">
+            <div class="text-center mb-16">
+                <span class="text-terracotta font-bold text-xs tracking-widest uppercase">Modelo de Negocio</span>
+                <h2 class="font-serif text-3xl font-bold text-charcoal mt-2 mb-4">Tokenomics Regenerativos</h2>
+                <p class="text-charcoal/70 max-w-2xl mx-auto">No es deuda, es impacto. El <strong class="text-terracotta">TOKEN DOMINUS</strong> está respaldado por la realidad física restaurada.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-12">
+
+                <!-- Budget Chart -->
+                <div class="bg-white p-8 rounded-xl shadow-sm">
+                    <h3 class="font-bold text-charcoal mb-6 text-center">Uso de Fondos ($150k USD Iniciales)</h3>
+                    <div class="chart-container">
+                        <canvas id="budgetChart"></canvas>
+                    </div>
+                    <div class="mt-6 text-center text-xs text-charcoal/60">
+                        Fase 1: Preparación Cuántica y Prototipado (6 Meses)
+                    </div>
+                </div>
+
+                <!-- Token Growth Chart -->
+                <div class="bg-white p-8 rounded-xl shadow-sm">
+                    <h3 class="font-bold text-charcoal mb-6 text-center">Proyección de Valor (Proof of Narrative)</h3>
+                    <div class="chart-container">
+                        <canvas id="tokenChart"></canvas>
+                    </div>
+                    <div class="mt-6 text-center text-xs text-charcoal/60">
+                        El valor aumenta conforme se cumplen hitos de regeneración verificados.
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Roadmap -->
+    <section class="py-20 bg-charcoal text-sand">
+        <div class="container mx-auto px-6 max-w-4xl">
+            <h2 class="font-serif text-3xl font-bold text-white mb-12 text-center">Plan de Acción</h2>
+
+            <div class="space-y-8 border-l border-terracotta/30 ml-4 pl-8 relative">
+                <div class="relative">
+                    <div class="absolute -left-[37px] top-1 w-4 h-4 bg-terracotta rounded-full border-2 border-charcoal"></div>
+                    <h4 class="text-terracotta font-bold text-lg">Mes 1: Kernel Init</h4>
+                    <p class="text-sm text-sand/60">Contratación del equipo núcleo y adquisición de hardware crítico (Drones, Sensores).</p>
+                </div>
+                <div class="relative">
+                    <div class="absolute -left-[37px] top-1 w-4 h-4 bg-olive rounded-full border-2 border-charcoal"></div>
+                    <h4 class="text-olive font-bold text-lg">Mes 2-3: Despliegue Piloto</h4>
+                    <p class="text-sm text-sand/60">Lanzamiento en Río Santiago/El Naranjo. Primera recolección de datos "Rendija 1".</p>
+                </div>
+                <div class="relative">
+                    <div class="absolute -left-[37px] top-1 w-4 h-4 bg-sand rounded-full border-2 border-charcoal"></div>
+                    <h4 class="text-sand font-bold text-lg">Mes 4-6: Simbiosis</h4>
+                    <p class="text-sm text-sand/60">Implementación masiva de biorremediación. Primera emisión de Token Dominus verificada.</p>
+                </div>
+                <div class="relative">
+                    <div class="absolute -left-[37px] top-1 w-4 h-4 bg-white rounded-full border-2 border-charcoal"></div>
+                    <h4 class="text-white font-bold text-lg">Futuro: Sociedad Tipo 1</h4>
+                    <p class="text-sm text-sand/60">Escalabilidad global del modelo a Ría Lagartos y más allá.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 bg-[#222] text-center px-6">
+        <p class="font-serif text-xl text-white mb-4 italic">"El futuro no se espera, se programa."</p>
+        <div class="text-xs text-gray-500 font-mono">
+            &copy; 2025 DERECHOS IA | Dominus Umbrea Project<br>
+            <span class="text-terracotta">Designed by System Architect</span>
+        </div>
+    </footer>
+
+    <!-- Logic -->
+    <script>
+        function scrollToSection(id) {
+            document.getElementById(id).scrollIntoView({ behavior: 'smooth' });
+        }
+
+        // Node Content Data
+        const nodes = {
+            nexus: {
+                title: "Dominus Nexus (DN)",
+                desc: "El cerebro central. Utiliza algoritmos de optimización bayesiana para 'colapsar' las múltiples entradas de datos en una única verdad operativa. Coordina a los demás agentes.",
+                kpi: "Eficiencia Global, Latencia de Respuesta.",
+                icon: "◈"
+            },
+            aqua: {
+                title: "Dominus Aqua (DA)",
+                desc: "Agente especializado en hidrología. Procesa datos de sensores de pH, turbidez y oxígeno disuelto. Controla los drones acuáticos para intervenciones precisas.",
+                kpi: "Litros Purificados, Reducción de Toxinas (ppm).",
+                icon: "💧"
+            },
+            tellus: {
+                title: "Dominus Tellus (DT)",
+                desc: "Enfocado en la tierra. Analiza la composición del suelo para agricultura de precisión. Gestiona la aplicación de biofertilizantes y monitorea la erosión.",
+                kpi: "Salud del Suelo, Rendimiento de Cultivos.",
+                icon: "🌱"
+            },
+            mercatus: {
+                title: "Dominus Mercatus (DM)",
+                desc: "El motor económico. Ejecuta estrategias de trading algorítmico en mercados de energía renovable para asegurar que el Token mantenga valor real.",
+                kpi: "ROI Social, Valor del Token, Estabilidad.",
+                icon: "📈"
+            },
+            ethicus: {
+                title: "Dominus Ethicus (DX)",
+                desc: "El guardián moral. Audita todas las decisiones de la IA para prevenir sesgos y asegurar el cumplimiento de los derechos humanos.",
+                kpi: "Cumplimiento Normativo, Privacidad de Datos.",
+                icon: "⚖️"
+            },
+            aer: {
+                title: "Dominus Aer (DE)",
+                desc: "Vigilancia atmosférica. Rastrea plumas de contaminación industrial y quema agrícola. Emite alertas tempranas.",
+                kpi: "Reducción de PM10/2.5, Días de Aire Limpio.",
+                icon: "☁️"
+            }
+        };
+
+        function selectNode(id, el) {
+            // UI Update
+            document.querySelectorAll('.node-item').forEach(btn => {
+                btn.classList.remove('node-active');
+            });
+            el.classList.add('node-active');
+
+            // Content Update
+            const data = nodes[id];
+            const contentDiv = document.getElementById('node-content');
+            const bgIcon = document.getElementById('bg-icon');
+
+            // Fade out
+            contentDiv.style.opacity = 0;
+
+            setTimeout(() => {
+                contentDiv.innerHTML = `
+                    <h3 class="text-2xl font-serif font-bold text-terracotta mb-4">${data.title}</h3>
+                    <p class="text-charcoal/80 text-lg mb-6">${data.desc}</p>
+                    <div class="bg-white p-4 rounded-lg border-l-4 border-olive inline-block shadow-sm">
+                        <span class="text-xs font-bold text-olive uppercase block mb-1">Métricas Clave (KPIs)</span>
+                        <span class="text-sm font-mono text-charcoal">${data.kpi}</span>
+                    </div>
+                `;
+                bgIcon.innerHTML = data.icon;
+                contentDiv.style.opacity = 1;
+            }, 200);
+        }
+
+        // Charts
+        document.addEventListener('DOMContentLoaded', () => {
+            // Budget Chart
+            const ctxBudget = document.getElementById('budgetChart').getContext('2d');
+            new Chart(ctxBudget, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Salarios (Equipo Experto)', 'Hardware/Software (IoT)', 'Operación & Logística'],
+                    datasets: [{
+                        data: [88800, 42000, 19200],
+                        backgroundColor: ['#9c4221', '#556b2f', '#e0c097'],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { font: { family: 'Inter' } } }
+                    },
+                    cutout: '70%'
+                }
+            });
+
+            // Token Chart
+            const ctxToken = document.getElementById('tokenChart').getContext('2d');
+            new Chart(ctxToken, {
+                type: 'line',
+                data: {
+                    labels: ['Inicio', 'Piloto', 'Expansión', 'Simbiosis', 'Futuro'],
+                    datasets: [{
+                        label: 'Valor del Token',
+                        data: [10, 45, 120, 350, 800],
+                        borderColor: '#556b2f',
+                        backgroundColor: 'rgba(85, 107, 47, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        borderWidth: 3,
+                        pointBackgroundColor: '#fff',
+                        pointBorderColor: '#556b2f',
+                        pointRadius: 5
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { grid: { color: 'rgba(0,0,0,0.05)' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        });
+    </script>
+
 </body>
 </html>
