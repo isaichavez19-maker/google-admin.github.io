@@ -2,285 +2,339 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VOX UMBREA MK-II: SEQUENCER</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VOX UMBREA MK-III: DAEMON EDITION</title>
     <style>
         :root {
-            --bg: #050505;
-            --panel: #111;
+            --bg: #020202;
+            --panel: #0f0f0f;
             --border: #333;
-            --accent: #00ffcc; /* Cian */
-            --beat: #9c4221; /* Terracota */
-            --active: #ff0055; /* Magenta */
-            --text: #eee;
+            --cyan: #00f3ff;
+            --magenta: #ff0055;
+            --gold: #ffcc00;
+            --text: #c0c0c0;
+            --font: 'Courier New', monospace;
         }
 
         body {
             background-color: var(--bg);
             color: var(--text);
-            font-family: 'Courier New', monospace;
+            font-family: var(--font);
             margin: 0;
             display: flex;
             flex-direction: column;
             height: 100vh;
             overflow: hidden;
+            user-select: none;
         }
 
-        /* --- HEADER & CONTROLS --- */
+        /* --- VISUALIZADOR (EL OJO) --- */
+        #visualizer-container {
+            height: 120px;
+            background: #000;
+            border-bottom: 1px solid var(--cyan);
+            position: relative;
+        }
+        canvas { width: 100%; height: 100%; display: block; }
+        .hud-text {
+            position: absolute;
+            top: 5px; left: 10px;
+            font-size: 0.7rem;
+            color: var(--cyan);
+            opacity: 0.7;
+        }
+
+        /* --- CONTROLES GLOBALES --- */
         header {
             padding: 10px;
-            border-bottom: 1px solid var(--accent);
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background: var(--panel);
-        }
-
-        .transport {
-            display: flex;
-            gap: 10px;
         }
 
         button {
-            background: var(--border);
-            color: var(--text);
-            border: 1px solid var(--accent);
-            padding: 5px 15px;
+            background: #000;
+            border: 1px solid var(--cyan);
+            color: var(--cyan);
+            padding: 8px 20px;
             font-family: inherit;
+            font-weight: bold;
             cursor: pointer;
             text-transform: uppercase;
-            font-weight: bold;
+            box-shadow: 0 0 5px rgba(0, 243, 255, 0.2);
+            transition: all 0.2s;
         }
+        button:hover { background: var(--cyan); color: #000; }
+        button.active { background: var(--magenta); border-color: var(--magenta); color: #fff; }
 
-        button:active, button.playing {
-            background: var(--accent);
-            color: #000;
-        }
+        input[type=range] { accent-color: var(--magenta); cursor: pointer; }
 
-        input[type=range] {
-            accent-color: var(--accent);
-        }
-
-        /* --- MÓDULO 1: SECUENCIADOR (LA LÓGICA) --- */
-        #sequencer-module {
-            padding: 10px;
-            border-bottom: 2px dashed var(--border);
+        /* --- SECUENCIADOR --- */
+        #sequencer {
+            padding: 15px;
             flex: 0 0 auto;
+            border-bottom: 1px dashed var(--border);
         }
-
-        .track-row {
-            display: flex;
-            align-items: center;
-            margin-bottom: 5px;
-        }
-
-        .track-label {
-            width: 60px;
-            font-size: 0.7rem;
-            color: var(--accent);
-        }
-
-        .steps {
-            display: flex;
-            gap: 2px;
-            flex: 1;
-        }
-
+        .track { display: flex; align-items: center; margin-bottom: 8px; }
+        .label { width: 80px; font-size: 0.7rem; color: var(--gold); letter-spacing: 1px;}
+        .steps { display: flex; gap: 4px; flex: 1; }
         .step {
-            flex: 1;
-            height: 30px;
-            background: var(--panel);
-            border: 1px solid var(--border);
+            flex: 1; height: 25px;
+            background: #1a1a1a;
+            border: 1px solid #333;
             cursor: pointer;
         }
+        .step.on { background: var(--gold); box-shadow: 0 0 8px var(--gold); border-color: #fff; }
+        .step.trigger { transform: scale(1.1); filter: brightness(1.5); }
 
-        .step.active {
-            background: var(--beat);
-            box-shadow: 0 0 5px var(--beat);
-        }
-
-        .step.current {
-            border-color: #fff;
-            transform: scale(1.1);
-        }
-
-        /* --- MÓDULO 2: DECK DE MEZCLA (LA FUSIÓN) --- */
-        #decks-module {
+        /* --- MEZCLADORA & FX --- */
+        #mixer-deck {
             flex: 1;
             display: flex;
-            gap: 10px;
             padding: 10px;
-            background: #0a0a0a;
+            gap: 15px;
+            background: #080808;
         }
 
-        .deck {
+        .deck-col {
             flex: 1;
             border: 1px solid var(--border);
+            border-radius: 4px;
             padding: 10px;
             display: flex;
             flex-direction: column;
             gap: 10px;
-            border-radius: 5px;
-            position: relative;
+            background: rgba(255,255,255,0.02);
         }
+        .deck-title { color: var(--magenta); font-size: 0.8rem; border-bottom: 1px solid #333; padding-bottom: 5px; }
 
-        .deck h3 { margin: 0; font-size: 0.8rem; color: var(--accent); }
-
-        .file-input {
-            font-size: 0.7rem;
-            color: #888;
-        }
-
-        .deck-controls {
+        .knob-panel {
             display: flex;
             flex-direction: column;
-            gap: 10px;
-        }
-
-        .deck-status {
-            height: 5px;
-            background: #333;
-            width: 0%;
-            transition: width 0.1s linear;
-        }
-
-        .eq-panel {
+            gap: 5px;
+            margin-top: auto;
+            padding-top: 10px;
             border-top: 1px solid #333;
-            padding-top: 5px;
         }
+        .small-label { font-size: 0.6rem; color: #666; }
 
-        .eq-label { font-size: 0.6rem; display: block; margin-bottom: 2px; }
-
-        /* CROSSFADER */
-        #mixer-control {
-            padding: 10px;
+        /* --- CROSSFADER ZONE --- */
+        #master-fx {
+            padding: 15px;
             background: var(--panel);
-            text-align: center;
+            border-top: 1px solid var(--cyan);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
         }
-
-        #crossfader { width: 80%; }
+        #xfader { width: 200px; }
 
     </style>
 </head>
 <body>
 
+    <div id="visualizer-container">
+        <div class="hud-text">:: ANALIZADOR ESPECTRAL // KERNEL: ACTIVO ::</div>
+        <canvas id="scope"></canvas>
+    </div>
+
     <header>
-        <div class="transport">
-            <button id="btnPlay" onclick="togglePlay()">PLAY</button>
-            <button onclick="clearPattern()">CLEAR</button>
-        </div>
         <div>
-            <label style="font-size: 0.7rem;">BPM: <span id="bpmVal">90</span></label>
-            <input type="range" min="60" max="140" value="90" oninput="updateBPM(this.value)">
+            <button id="pwrBtn" onclick="toggleSystem()">INICIAR SISTEMA</button>
+            <span style="margin-left:10px; font-size:0.8rem; color:#666;" id="status">ESPERANDO...</span>
+        </div>
+        <div style="display:flex; align-items:center; gap:10px;">
+            <label class="small-label">TEMPO (BPM)</label>
+            <input type="range" min="60" max="160" value="95" oninput="updateBPM(this.value)">
+            <span id="bpmDisplay" style="width:30px; text-align:right; font-size:0.8rem;">95</span>
         </div>
     </header>
 
-    <div id="sequencer-module">
-        <div style="font-size: 0.7rem; margin-bottom: 5px; color:#666;">// SECUENCIA RÍTMICA (16 PASOS)</div>
-        <div class="track-row">
-            <div class="track-label">KICK</div>
-            <div class="steps" id="track-kick"></div>
+    <div id="sequencer">
+        <div class="track">
+            <div class="label">KICK</div>
+            <div class="steps" id="row-kick"></div>
         </div>
-        <div class="track-row">
-            <div class="track-label">SNARE</div>
-            <div class="steps" id="track-snare"></div>
+        <div class="track">
+            <div class="label">SNARE</div>
+            <div class="steps" id="row-snare"></div>
         </div>
-        <div class="track-row">
-            <div class="track-label">HIHAT</div>
-            <div class="steps" id="track-hihat"></div>
+        <div class="track">
+            <div class="label">HIHAT</div>
+            <div class="steps" id="row-hihat"></div>
         </div>
-    </div>
-
-    <div id="decks-module">
-        <div class="deck" style="border-color: #9c4221;">
-            <h3>DECK A: CUMBIA</h3>
-            <input type="file" class="file-input" accept="audio/*" onchange="loadAudio(this, 'A')">
-            <button onclick="playDeck('A')">PLAY / PAUSE</button>
-            <div class="deck-status" id="progress-A"></div>
-
-            <div class="eq-panel">
-                <span class="eq-label">FILTRO (LOW PASS) - BAJO</span>
-                <input type="range" min="0" max="100" value="100" oninput="updateFilter('A', this.value)">
-            </div>
-        </div>
-
-        <div class="deck" style="border-color: #00ffcc;">
-            <h3>DECK B: HIP HOP</h3>
-            <input type="file" class="file-input" accept="audio/*" onchange="loadAudio(this, 'B')">
-            <button onclick="playDeck('B')">PLAY / PAUSE</button>
-            <div class="deck-status" id="progress-B"></div>
-
-            <div class="eq-panel">
-                <span class="eq-label">FILTRO (HIGH PASS) - VOZ</span>
-                <input type="range" min="0" max="100" value="0" oninput="updateFilter('B', this.value)">
-            </div>
+        <div class="track">
+            <div class="label" style="color:var(--cyan)">BASS (FM)</div>
+            <div class="steps" id="row-bass"></div>
         </div>
     </div>
 
-    <div id="mixer-control">
-        <span style="font-size:0.7rem; color:#9c4221">A (CUMBIA)</span>
-        <input type="range" id="crossfader" min="0" max="100" value="50" oninput="updateCrossfader(this.value)">
-        <span style="font-size:0.7rem; color:#00ffcc">B (RAP)</span>
+    <div id="mixer-deck">
+        <!-- DECK A -->
+        <div class="deck-col">
+            <div class="deck-title">DECK A [CUMBIA/ROOTS]</div>
+            <input type="file" accept="audio/*" onchange="loadDeck('A', this)" style="font-size:0.7rem;">
+            <button onclick="toggleDeck('A')">PLAY / STOP</button>
+
+            <div class="knob-panel">
+                <span class="small-label">FILTRO (LPF)</span>
+                <input type="range" min="0" max="100" value="100" oninput="setFilter('A', this.value)">
+            </div>
+        </div>
+
+        <!-- FX RACK -->
+        <div class="deck-col" style="flex: 0.5; border-color: var(--cyan);">
+            <div class="deck-title" style="color:var(--cyan)">FX: DUB ECHO</div>
+            <div class="knob-panel" style="border:none;">
+                <span class="small-label">TIEMPO (DELAY)</span>
+                <input type="range" min="0" max="100" value="30" oninput="setDelayTime(this.value)">
+                <span class="small-label">FEEDBACK</span>
+                <input type="range" min="0" max="90" value="40" oninput="setDelayFeedback(this.value)">
+                <span class="small-label">ENVÍO (WET)</span>
+                <input type="range" min="0" max="100" value="0" oninput="setDelayWet(this.value)">
+            </div>
+        </div>
+
+        <!-- DECK B -->
+        <div class="deck-col">
+            <div class="deck-title">DECK B [HIPHOP/TRAP]</div>
+            <input type="file" accept="audio/*" onchange="loadDeck('B', this)" style="font-size:0.7rem;">
+            <button onclick="toggleDeck('B')">PLAY / STOP</button>
+
+            <div class="knob-panel">
+                <span class="small-label">FILTRO (HPF)</span>
+                <input type="range" min="0" max="100" value="0" oninput="setFilter('B', this.value)">
+            </div>
+        </div>
+    </div>
+
+    <div id="master-fx">
+        <span style="color:var(--gold); font-size:0.8rem;">A</span>
+        <input type="range" id="xfader" min="0" max="100" value="50" oninput="crossfade(this.value)">
+        <span style="color:var(--magenta); font-size:0.8rem;">B</span>
     </div>
 
     <script>
-        // --- NÚCLEO DE AUDIO ---
+        // --- NÚCLEO DEL AUDIO ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
-        const ctx = new AudioContext();
+        let ctx;
+        let masterGain;
+        let compressor;
+        let analyser;
 
-        // --- LÓGICA DEL SECUENCIADOR ---
-        let isPlaying = false;
+        // --- BUS DE EFECTOS (DELAY) ---
+        let delayNode, feedbackNode, wetGainNode;
+
+        // --- ESTADO ---
+        let isRunning = false;
+        let bpm = 95;
         let currentStep = 0;
-        let bpm = 90;
         let nextNoteTime = 0;
-        let timerID = null;
+        let timerID;
         const lookahead = 25.0;
         const scheduleAheadTime = 0.1;
 
-        // Patrones (16 pasos x 3 instrumentos)
-        const sequence = {
-            kick: new Array(16).fill(false),
-            snare: new Array(16).fill(false),
-            hihat: new Array(16).fill(false)
+        // --- DATOS DE SECUENCIA ---
+        const tracks = ['kick', 'snare', 'hihat', 'bass'];
+        const pattern = {
+            kick:  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
+            snare: [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0],
+            hihat: [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1],
+            bass:  [1,0,0,1, 0,0,1,0, 1,0,0,1, 0,1,0,0]
         };
 
-        // Inicializar UI del Secuenciador
-        ['kick', 'snare', 'hihat'].forEach(track => {
-            const container = document.getElementById(`track-${track}`);
-            for(let i=0; i<16; i++) {
-                const step = document.createElement('div');
-                step.className = 'step';
-                // Beat Cumbiero por defecto (ejemplo)
-                if(track === 'kick' && (i===0 || i===8)) { step.classList.add('active'); sequence.kick[i] = true; }
-                if(track === 'hihat' && (i%2!==0)) { step.classList.add('active'); sequence.hihat[i] = true; }
+        // --- INICIALIZACIÓN ---
+        function initAudio() {
+            if(ctx) return;
+            ctx = new AudioContext();
 
-                step.onclick = () => {
-                    step.classList.toggle('active');
-                    sequence[track][i] = !sequence[track][i];
-                };
-                step.id = `${track}-${i}`;
-                container.appendChild(step);
+            // Cadena Master: Master -> Compressor -> Analyser -> Destination
+            masterGain = ctx.createGain();
+            compressor = ctx.createDynamicsCompressor();
+            compressor.threshold.setValueAtTime(-24, ctx.currentTime);
+            compressor.knee.setValueAtTime(30, ctx.currentTime);
+            compressor.ratio.setValueAtTime(12, ctx.currentTime);
+
+            analyser = ctx.createAnalyser();
+            analyser.fftSize = 256;
+
+            masterGain.connect(compressor);
+            compressor.connect(analyser);
+            analyser.connect(ctx.destination);
+
+            // Configurar FX (Dub Delay)
+            delayNode = ctx.createDelay();
+            delayNode.delayTime.value = 0.3; // Tiempo inicial
+            feedbackNode = ctx.createGain();
+            feedbackNode.gain.value = 0.4;
+            wetGainNode = ctx.createGain();
+            wetGainNode.gain.value = 0.0; // Apagado por defecto
+
+            // Ruteo del Delay: Envío Auxiliar
+            // Master -> WetGain -> Delay -> Feedback -> Delay
+            // Delay -> Master (Retorno)
+            // *Simplificación para este código*: Conectaremos los instrumentos al DelaySend
+
+            // Vamos a crear un bus de envios global
+            window.fxBus = ctx.createGain();
+            window.fxBus.connect(wetGainNode);
+            wetGainNode.connect(delayNode);
+            delayNode.connect(feedbackNode);
+            feedbackNode.connect(delayNode);
+            delayNode.connect(masterGain); // El eco vuelve al master
+
+            initDecks();
+            visualize();
+        }
+
+        function toggleSystem() {
+            if(!ctx) initAudio();
+            if(ctx.state === 'suspended') ctx.resume();
+
+            isRunning = !isRunning;
+            const btn = document.getElementById('pwrBtn');
+            const status = document.getElementById('status');
+
+            if(isRunning) {
+                btn.classList.add('active');
+                btn.innerText = "DETENER SISTEMA";
+                status.innerText = "SECUENCIADOR: CORRIENDO";
+                currentStep = 0;
+                nextNoteTime = ctx.currentTime;
+                scheduler();
+            } else {
+                btn.classList.remove('active');
+                btn.innerText = "INICIAR SISTEMA";
+                status.innerText = "SISTEMA EN ESPERA";
+                clearTimeout(timerID);
             }
-        });
+        }
 
+        // --- MOTOR DEL SECUENCIADOR ---
         function nextNote() {
             const secondsPerBeat = 60.0 / bpm;
-            nextNoteTime += 0.25 * secondsPerBeat; // 16th notes
+            nextNoteTime += 0.25 * secondsPerBeat; // Semicorcheas (16th)
             currentStep = (currentStep + 1) % 16;
         }
 
-        function scheduleNote(beatNumber, time) {
-            // UI Feedback
+        function scheduleNote(step, time) {
+            // UI Sync
             requestAnimationFrame(() => {
-                document.querySelectorAll('.step').forEach(s => s.classList.remove('current'));
-                document.getElementById(`kick-${beatNumber}`).classList.add('current');
-                document.getElementById(`snare-${beatNumber}`).classList.add('current');
-                document.getElementById(`hihat-${beatNumber}`).classList.add('current');
+                document.querySelectorAll('.step').forEach(s => s.classList.remove('trigger'));
+                tracks.forEach(t => {
+                    const el = document.getElementById(`${t}-${step}`);
+                    if(el) el.classList.add('trigger');
+                });
             });
 
-            if(sequence.kick[beatNumber]) playDrum('kick', time);
-            if(sequence.snare[beatNumber]) playDrum('snare', time);
-            if(sequence.hihat[beatNumber]) playDrum('hihat', time);
+            // Audio Trigger
+            if(pattern.kick[step]) playDrum('kick', time);
+            if(pattern.snare[step]) playDrum('snare', time);
+            if(pattern.hihat[step]) playDrum('hihat', time);
+            if(pattern.bass[step]) playBass(time, step); // Nuevo Synth
         }
 
         function scheduler() {
@@ -288,172 +342,228 @@
                 scheduleNote(currentStep, nextNoteTime);
                 nextNote();
             }
-            timerID = window.setTimeout(scheduler, lookahead);
+            timerID = setTimeout(scheduler, lookahead);
         }
 
-        function togglePlay() {
-            if(ctx.state === 'suspended') ctx.resume();
-            isPlaying = !isPlaying;
-            const btn = document.getElementById('btnPlay');
-
-            if(isPlaying) {
-                btn.classList.add('playing');
-                btn.innerText = "STOP";
-                currentStep = 0;
-                nextNoteTime = ctx.currentTime;
-                scheduler();
-            } else {
-                btn.classList.remove('playing');
-                btn.innerText = "PLAY";
-                window.clearTimeout(timerID);
-            }
-        }
-
-        function updateBPM(val) {
-            bpm = val;
-            document.getElementById('bpmVal').innerText = val;
-        }
-
-        function clearPattern() {
-            ['kick', 'snare', 'hihat'].forEach(track => {
-                for (let i = 0; i < 16; i++) {
-                    sequence[track][i] = false;
-                    const step = document.getElementById(`${track}-${i}`);
-                    step.classList.remove('active');
-                }
-            });
-        }
-
-        // --- SINTETIZADOR DE BATERÍA (IGUAL QUE VOX UMBREA 1) ---
+        // --- SINTETIZADORES MEJORADOS ---
         function playDrum(type, time) {
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
+
+            // Envío al Master y al FX Bus
+            gain.connect(masterGain);
+            gain.connect(window.fxBus); // Enviar a delay
 
             if(type === 'kick') {
                 osc.frequency.setValueAtTime(150, time);
                 osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
                 gain.gain.setValueAtTime(1, time);
-                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
-            } else if(type === 'snare') {
-                // Snare simplificado para este ejemplo
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+            } else if (type === 'snare') {
                 osc.type = 'triangle';
-                osc.frequency.setValueAtTime(200, time);
-                gain.gain.setValueAtTime(0.5, time);
+                osc.frequency.setValueAtTime(250, time);
+                gain.gain.setValueAtTime(0.7, time);
                 gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
-            } else {
-                // Hihat (Ruido sintético rápido)
-                osc.type = 'square'; // Ruido simulado con onda cuadrada muy aguda
-                osc.frequency.setValueAtTime(8000, time);
+                // Ruido blanco adicional para el snare
+                const noise = ctx.createBufferSource();
+                const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for(let i=0; i < buffer.length; i++) data[i] = Math.random() * 2 - 1;
+                noise.buffer = buffer;
+                const noiseGain = ctx.createGain();
+                noiseGain.gain.value = 0.5;
+                noiseGain.connect(masterGain);
+                noiseGain.connect(window.fxBus);
+                noise.connect(noiseGain);
+                noise.start(time);
+            } else { // Hihat
+                // Sintesis FM simple para metálicos
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(1200, time); // Alta frecuencia
+                // Modulador FM para inarmonicidad
+                /* Simplificado para rendimiento: Usar onda cuadrada corta */
                 gain.gain.setValueAtTime(0.3, time);
                 gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
+
+                // Filtro paso alto para hihat
+                const hp = ctx.createBiquadFilter();
+                hp.type = 'highpass';
+                hp.frequency.value = 5000;
+                osc.disconnect();
+                osc.connect(hp);
+                hp.connect(gain);
             }
 
-            osc.connect(gain);
-            gain.connect(ctx.destination);
             osc.start(time);
             osc.stop(time + 0.5);
         }
 
-        // --- LÓGICA DE DECKS & MEZCLA ---
-        const decks = {
-            A: { buffer: null, source: null, gain: null, filter: null, playing: false, startOffset: 0, startTime: 0 },
-            B: { buffer: null, source: null, gain: null, filter: null, playing: false, startOffset: 0, startTime: 0 }
-        };
+        function playBass(time, step) {
+            // Sintetizador de Bajo FM
+            const osc = ctx.createOscillator();
+            const mod = ctx.createOscillator();
+            const modGain = ctx.createGain();
+            const masterVol = ctx.createGain();
 
-        // Crear bus de mezcla
-        const masterBus = ctx.createGain();
-        masterBus.connect(ctx.destination);
+            // Notas cambiantes según el paso (Secuencia melódica simple)
+            // Escala menor básica
+            const notes = [55, 55, 65, 55, 55, 55, 65, 73, 55, 55, 65, 55, 82, 73, 65, 55];
+            const freq = notes[step] || 55;
 
-        function initDeck(id) {
-            decks[id].gain = ctx.createGain();
-            decks[id].filter = ctx.createBiquadFilter();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(freq, time);
 
-            // Configurar filtros por defecto
-            if(id === 'A') { // Cumbia (Low Pass por defecto abierto)
-                decks[id].filter.type = 'lowpass';
-                decks[id].filter.frequency.value = 20000;
-            } else { // Hip Hop (High Pass por defecto cerrado)
-                decks[id].filter.type = 'highpass';
-                decks[id].filter.frequency.value = 0;
-            }
+            mod.type = 'sine';
+            mod.frequency.setValueAtTime(freq * 2, time); // Octava arriba
+            modGain.gain.setValueAtTime(300, time); // Indice de modulación
 
-            // Cadena: Source -> Filter -> Gain -> Master
-            decks[id].filter.connect(decks[id].gain);
-            decks[id].gain.connect(masterBus);
+            mod.connect(modGain);
+            modGain.connect(osc.frequency);
+
+            masterVol.gain.setValueAtTime(0.4, time);
+            masterVol.gain.setTargetAtTime(0, time + 0.1, 0.2); // Decay
+
+            osc.connect(masterVol);
+            masterVol.connect(masterGain);
+
+            osc.start(time);
+            mod.start(time);
+            osc.stop(time + 0.5);
+            mod.stop(time + 0.5);
         }
 
-        initDeck('A'); initDeck('B');
+        // --- CONSTRUCCIÓN UI SECUENCIADOR ---
+        tracks.forEach(t => {
+            const row = document.getElementById(`row-${t}`);
+            for(let i=0; i<16; i++) {
+                const step = document.createElement('div');
+                step.className = `step ${pattern[t][i] ? 'on' : ''}`;
+                step.id = `${t}-${i}`;
+                step.onclick = () => {
+                    pattern[t][i] = pattern[t][i] ? 0 : 1;
+                    step.classList.toggle('on');
+                };
+                row.appendChild(step);
+            }
+        });
 
-        function loadAudio(input, id) {
+        // --- LOGICA DECKS (MEZCLA) ---
+        const decks = { A: {}, B: {} };
+
+        function initDecks() {
+            ['A', 'B'].forEach(id => {
+                decks[id].gain = ctx.createGain();
+                decks[id].filter = ctx.createBiquadFilter();
+                decks[id].playing = false;
+
+                if(id === 'A') {
+                    decks[id].filter.type = 'lowpass';
+                    decks[id].filter.frequency.value = 22000;
+                } else {
+                    decks[id].filter.type = 'highpass';
+                    decks[id].filter.frequency.value = 0;
+                }
+
+                decks[id].filter.connect(decks[id].gain);
+                decks[id].gain.connect(masterGain);
+                // Envio a FX también
+                decks[id].gain.connect(window.fxBus);
+            });
+            crossfade(50);
+        }
+
+        function loadDeck(id, input) {
+            if(!ctx) initAudio();
             const file = input.files[0];
             if(!file) return;
             const reader = new FileReader();
-            reader.onload = function(e) {
-                ctx.decodeAudioData(e.target.result, function(buffer) {
+            reader.onload = e => {
+                ctx.decodeAudioData(e.target.result, buffer => {
                     decks[id].buffer = buffer;
-                    alert(`DECK ${id}: Audio Cargado Exitosamente`);
                 });
             };
             reader.readAsArrayBuffer(file);
         }
 
-        function playDeck(id) {
-            if (!decks[id].buffer) return;
-            if (ctx.state === 'suspended') ctx.resume();
-
-            const deck = decks[id];
-            const button = document.querySelector(`.deck[style*="${id === 'A' ? '9c4221' : '00ffcc'}"] button`);
-
-            if (deck.playing) {
-                deck.source.stop();
-                deck.startOffset = (deck.startOffset + ctx.currentTime - deck.startTime) % deck.buffer.duration;
-                deck.playing = false;
-                button.classList.remove('playing');
-                cancelAnimationFrame(deck.animationFrameId);
+        function toggleDeck(id) {
+            if(!decks[id].buffer) return;
+            if(decks[id].playing) {
+                decks[id].source.stop();
+                decks[id].playing = false;
             } else {
                 const src = ctx.createBufferSource();
-                src.buffer = deck.buffer;
+                src.buffer = decks[id].buffer;
                 src.loop = true;
-                src.connect(deck.filter);
-
-                src.start(0, deck.startOffset);
-
-                deck.source = src;
-                deck.startTime = ctx.currentTime;
-                deck.playing = true;
-                button.classList.add('playing');
-                updateProgress(id);
+                src.connect(decks[id].filter);
+                src.start(0);
+                decks[id].source = src;
+                decks[id].playing = true;
             }
         }
 
-        function updateProgress(id) {
-            const deck = decks[id];
-            if (deck.playing) {
-                const elapsedTime = (deck.startOffset + (ctx.currentTime - deck.startTime)) % deck.buffer.duration;
-                const progress = (elapsedTime / deck.buffer.duration) * 100;
-                document.getElementById(`progress-${id}`).style.width = `${progress}%`;
-                deck.animationFrameId = requestAnimationFrame(() => updateProgress(id));
-            }
+        function setFilter(id, val) {
+            const freq = (val / 100) * 10000;
+            if(id === 'A') decks[id].filter.frequency.value = freq + 50;
+            else decks[id].filter.frequency.value = freq;
         }
 
-        function updateFilter(id, val) {
-            // Simulación de "Sacar Instrumental/Acapella"
-            const freq = (val / 100) * 10000; // Escala hasta 10kHz
-            if(id === 'A') {
-                // Deck A (Cumbia): Filtro de Bajos. Si bajas, cortas agudos (queda solo bajo).
-                decks.A.filter.frequency.value = freq + 50; // Offset para no silenciar todo
-            } else {
-                // Deck B (Hip Hop): Filtro de Agudos. Si subes, cortas bajos (queda voz/hihats).
-                decks.B.filter.frequency.value = freq;
-            }
+        // --- FX CONTROL ---
+        function setDelayTime(val) {
+            // 0 - 100 -> 0.05s - 1.0s
+            if(delayNode) delayNode.delayTime.value = 0.05 + (val/100);
+        }
+        function setDelayFeedback(val) {
+            if(feedbackNode) feedbackNode.gain.value = val / 100;
+        }
+        function setDelayWet(val) {
+            if(wetGainNode) wetGainNode.gain.value = val / 100;
         }
 
-        function updateCrossfader(val) {
-            // Mezcla entre A y B (Equal Power Crossfade)
+        function crossfade(val) {
+            if(!decks.A.gain) return;
             const x = val / 100;
-            // Algoritmo simple linear para ganancia
-            decks.A.gain.gain.value = 1 - x;
-            decks.B.gain.gain.value = x;
+            // Equal power crossfade curve
+            decks.A.gain.gain.value = Math.cos(x * 0.5 * Math.PI);
+            decks.B.gain.gain.value = Math.cos((1 - x) * 0.5 * Math.PI);
+        }
+
+        function updateBPM(val) {
+            bpm = val;
+            document.getElementById('bpmDisplay').innerText = val;
+        }
+
+        // --- VISUALIZADOR ---
+        function visualize() {
+            const canvas = document.getElementById('scope');
+            const cCtx = canvas.getContext('2d');
+            const bufferLength = analyser.frequencyBinCount;
+            const dataArray = new Uint8Array(bufferLength);
+
+            function draw() {
+                requestAnimationFrame(draw);
+                analyser.getByteFrequencyData(dataArray);
+
+                cCtx.fillStyle = '#000';
+                cCtx.fillRect(0, 0, canvas.width, canvas.height);
+
+                const barWidth = (canvas.width / bufferLength) * 2.5;
+                let barHeight;
+                let x = 0;
+
+                for(let i = 0; i < bufferLength; i++) {
+                    barHeight = dataArray[i] / 2;
+
+                    // Colores Cyberpunk dinámicos
+                    const r = barHeight + (25 * (i/bufferLength));
+                    const g = 250 * (i/bufferLength);
+                    const b = 255; // Cian base
+
+                    cCtx.fillStyle = `rgb(${r*0.5},${g},${b})`;
+                    cCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
+                    x += barWidth + 1;
+                }
+            }
+            draw();
         }
 
     </script>
