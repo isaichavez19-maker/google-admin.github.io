@@ -3,337 +3,410 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OMEGA DAW: AUTO-PILOT | LIMITER</title>
+    <title>DOMINUS NEXUS | SISTEMA INTEGRADO</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700;900&display=swap" rel="stylesheet">
+
     <style>
-        body { background-color: #050505; color: #a1a1aa; font-family: 'Rajdhani', sans-serif; overflow: hidden; user-select: none; }
+        body { background-color: #010101; color: #a1a1aa; font-family: 'Rajdhani', sans-serif; overflow: hidden; user-select: none; }
         .font-mono { font-family: 'JetBrains Mono', monospace; }
 
-        /* UI DEL LIMITADOR */
-        .limiter-led {
-            width: 8px; height: 8px; border-radius: 50%; background: #333;
-            transition: background 0.05s;
-            box-shadow: 0 0 2px rgba(0,0,0,0.5) inset;
-        }
-        .limiter-led.active { background: #ef4444; box-shadow: 0 0 8px #ef4444; }
-        .limiter-led.warn { background: #eab308; box-shadow: 0 0 8px #eab308; }
+        /* ESTÉTICA CRT / GLITCH */
+        .scanline { background: repeating-linear-gradient(0deg, transparent, transparent 2px, #000 3px); opacity: 0.15; position: absolute; inset: 0; pointer-events: none; z-index: 99; }
+        .glow-text { text-shadow: 0 0 10px rgba(6, 182, 212, 0.6); }
+        .border-glow { box-shadow: 0 0 15px rgba(6, 182, 212, 0.1), inset 0 0 10px rgba(6, 182, 212, 0.05); }
 
-        /* KNOB AUTOMATIZADO */
-        .knob-container { position: relative; width: 40px; height: 40px; }
-        .knob-ring {
-            width: 100%; height: 100%; border-radius: 50%; border: 2px solid #333;
-            border-top-color: #06b6d4; transform: rotate(-135deg); transition: transform 0.1s linear;
-        }
-        .knob-ghost {
-            position: absolute; top: 0; left: 0; width: 100%; height: 100%; border-radius: 50%;
-            border: 2px dashed rgba(6, 182, 212, 0.3); pointer-events: none;
-        }
+        /* CONTROLES PERSONALIZADOS */
+        input[type=range] { -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 16px; width: 4px; background: #06b6d4; cursor: pointer; margin-top: -6px; box-shadow: 0 0 10px #06b6d4; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 2px; background: #333; }
 
-        /* SCANLINES */
-        .scanline { background: repeating-linear-gradient(0deg, transparent, transparent 2px, #000 3px); opacity: 0.3; position: absolute; inset: 0; pointer-events: none; z-index: 50; }
+        /* ANIMACIONES */
+        @keyframes pulse-slow { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+        .animate-pulse-slow { animation: pulse-slow 4s infinite; }
     </style>
 </head>
 <body>
     <div id="root"></div>
-    <script type="text/babel">
-        const { useState, useEffect, useRef, useCallback } = React;
 
-        // --- MOTOR DE AUDIO (CON LIMITADOR Y LFO) ---
-        class AudioEngine {
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+        // --- MOTOR DE AUDIO INTEGRADO (HYBRID ENGINE) ---
+        class NexusEngine {
             constructor() {
                 this.ctx = new (window.AudioContext || window.webkitAudioContext)();
 
-                // 1. CADENA MASTER DE SEGURIDAD (The Safety Net)
-                this.masterLimiter = this.ctx.createDynamicsCompressor();
-                this.masterLimiter.threshold.value = -3;  // Empieza a comprimir a -3dB
-                this.masterLimiter.knee.value = 30;       // Curva suave
-                this.masterLimiter.ratio.value = 12;      // Compresión fuerte (Limitador)
-                this.masterLimiter.attack.value = 0.003;  // Reacción rápida
-                this.masterLimiter.release.value = 0.25;  // Recuperación musical
+                // 1. CADENA DE IDENTIDAD (El efecto "Alpha")
+                // Bitcrusher simulado para representar la digitalización del alma
+                this.crusher = this.ctx.createScriptProcessor(4096, 1, 1);
+                this.bits = 16; // 16 = limpio, 4 = destruido
+                this.normfreq = 1; // 1 = limpio, 0.1 = destruido
+
+                this.crusher.onaudioprocess = (e) => {
+                    const input = e.inputBuffer.getChannelData(0);
+                    const output = e.outputBuffer.getChannelData(0);
+                    const step = Math.pow(1/2, this.bits);
+                    let ph = 0;
+                    let last = 0;
+                    for (let i = 0; i < input.length; i++) {
+                        ph += this.normfreq;
+                        if (ph >= 1) {
+                            ph -= 1;
+                            last = step * Math.floor(input[i] / step + 0.5);
+                        }
+                        output[i] = last;
+                    }
+                };
+
+                // 2. CADENA MASTER (Limitador)
+                this.limiter = this.ctx.createDynamicsCompressor();
+                this.limiter.threshold.value = -2;
+                this.limiter.ratio.value = 20;
 
                 this.masterGain = this.ctx.createGain();
-                this.masterGain.gain.value = 0.8; // Headroom
+                this.masterGain.gain.value = 0.8;
 
                 this.analyser = this.ctx.createAnalyser();
-                this.analyser.fftSize = 1024;
+                this.analyser.fftSize = 2048;
 
-                // Ruteo: Gain -> Limiter -> Analyser -> Speakers
-                this.masterGain.connect(this.masterLimiter);
-                this.masterLimiter.connect(this.analyser);
+                // RUTEO: Sources -> Crusher -> Limiter -> Master -> Analyser -> Out
+                // (Nota: El Crusher se conecta dinámicamente en los tracks para no romper todo)
+                this.masterGain.connect(this.limiter);
+                this.limiter.connect(this.analyser);
                 this.analyser.connect(this.ctx.destination);
-
-                // 2. AUTOMATIZACIÓN (The Ghost Hand)
-                // LFO Global para filtros
-                this.lfo = this.ctx.createOscillator();
-                this.lfo.frequency.value = 0.2; // 0.2 Hz (Muy lento, ciclo de 5 segundos)
-                this.lfoGain = this.ctx.createGain();
-                this.lfoGain.gain.value = 500; // Profundidad de la modulación (500Hz arriba/abajo)
-
-                this.lfo.connect(this.lfoGain);
-                this.lfo.start();
-
-                this.noiseBuffer = this.createNoiseBuffer();
             }
 
-            createNoiseBuffer() {
-                const b = this.ctx.createBuffer(1, this.ctx.sampleRate * 2, this.ctx.sampleRate);
-                const d = b.getChannelData(0);
-                for(let i=0; i<d.length; i++) d[i] = Math.random() * 2 - 1;
-                return b;
+            setIdentityCorruption(alpha) {
+                // Alpha 0.0 (Humano) -> Bits 16 (Limpio)
+                // Alpha 1.0 (IA) -> Bits 4 (Destruido/Glitch)
+                // Invertimos lógica: Queremos que la IA sea "perfecta" o "glitch"?
+                // Hagamos que Alpha 1.0 sea "Hiper-Procesado" (Voz robótica)
+                // Para este demo, usaremos Alpha para degradar la señal (Glitch estético)
+                this.bits = 16 - (alpha * 12); // De 16 a 4 bits
+                this.normfreq = 1 - (alpha * 0.8); // De 1 a 0.2 sample rate
             }
 
             resume() { if (this.ctx.state === 'suspended') this.ctx.resume(); }
 
-            // Trigger inteligente
             trigger(trackName, time, volPct) {
                 const t = time;
                 const vol = volPct / 100;
 
-                // TRACK: KICK (El pulso)
+                // Generadores simples para demo
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+
                 if (trackName.includes('KICK')) {
-                    const osc = this.ctx.createOscillator();
-                    const g = this.ctx.createGain();
-
                     osc.frequency.setValueAtTime(150, t);
-                    osc.frequency.exponentialRampToValueAtTime(40, t + 0.5);
-
-                    g.gain.setValueAtTime(vol, t);
-                    g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-
-                    osc.connect(g);
-                    g.connect(this.masterGain);
-                    osc.start(t); osc.stop(t + 0.5);
+                    osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.5);
+                    gain.gain.setValueAtTime(vol, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+                } else if (trackName.includes('SNARE')) {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(200, t);
+                    gain.gain.setValueAtTime(vol, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+                } else { // HIHAT
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(1000, t);
+                    gain.gain.setValueAtTime(vol*0.3, t);
+                    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
                 }
 
-                // TRACK: BASS (El que sufre la automatización)
-                else if (trackName.includes('BASS')) {
-                    const osc = this.ctx.createOscillator();
-                    const filter = this.ctx.createBiquadFilter(); // Filtro resonante
-                    const g = this.ctx.createGain();
+                // Ruteo especial: Pasamos por el Crusher si es necesario, o directo al Master
+                osc.connect(gain);
 
-                    osc.type = 'sawtooth';
-                    osc.frequency.setValueAtTime(65, t); // Nota fija (Drone)
+                // Conectamos todo al master directo por ahora para estabilidad en demo
+                // Para usar el crusher, conectaríamos: gain.connect(this.crusher); this.crusher.connect(this.masterGain);
+                // Pero el ScriptProcessor es pesado para multiples voces.
+                // Aplicaremos "Alpha" como desafinación global (Detune)
 
-                    // CONFIGURACIÓN DEL FILTRO
-                    filter.type = 'lowpass';
-                    filter.Q.value = 15; // Mucha resonancia (Acid)
-                    filter.frequency.setValueAtTime(400, t); // Frecuencia base
+                // APLICACIÓN DE LA PARADOJA DE TESEO AL AUDIO:
+                // Si Alpha es alto, los osciladores se desafinan (Glitch cognitivo)
+                // Usamos una propiedad global que leeremos desde la UI
+                const detuneAmount = (window.globalAlpha || 0) * 1200; // Hasta 1 octava de error
+                if (Math.random() > 0.7) osc.detune.setValueAtTime(Math.random() * detuneAmount, t);
 
-                    // CONECTAR LA MANO FANTASMA (LFO -> FILTER)
-                    this.lfoGain.connect(filter.frequency);
-
-                    // Envolvente de volumen
-                    g.gain.setValueAtTime(0, t);
-                    g.gain.linearRampToValueAtTime(vol, t + 0.05);
-                    g.gain.setValueAtTime(vol * 0.8, t + 0.2);
-                    g.gain.linearRampToValueAtTime(0, t + 0.5);
-
-                    osc.connect(filter);
-                    filter.connect(g);
-                    g.connect(this.masterGain);
-
-                    osc.start(t); osc.stop(t + 0.6);
-
-                    // IMPORTANTE: Desconectar el LFO después para no acumular conexiones
-                    // (En una app real, esto se maneja con nodos permanentes,
-                    // aquí usamos un hack de timeout para limpieza simple)
-                    setTimeout(() => {
-                        try { this.lfoGain.disconnect(filter.frequency); } catch(e){}
-                    }, 600);
-                }
-
-                // TRACK: HIHATS
-                else if (trackName.includes('HI')) {
-                    const src = this.ctx.createBufferSource();
-                    src.buffer = this.noiseBuffer;
-                    const f = this.ctx.createBiquadFilter();
-                    f.type = 'highpass'; f.frequency.value = 7000;
-                    const g = this.ctx.createGain();
-                    g.gain.setValueAtTime(vol*0.6, t);
-                    g.gain.exponentialRampToValueAtTime(0.001, t + 0.05);
-                    src.connect(f); f.connect(g); g.connect(this.masterGain);
-                    src.start(t); src.stop(t+0.1);
-                }
+                gain.connect(this.masterGain);
+                osc.start(t);
+                osc.stop(t + 0.5);
             }
         }
 
-        const engine = new AudioEngine();
+        const nexus = new NexusEngine();
 
-        const OmegaAuto = () => {
+        // --- COMPONENTE PRINCIPAL ---
+        const NexusCore = () => {
+            // ESTADO GLOBAL
+            const [alpha, setAlpha] = useState(0.88); // Paradoja de Teseo
             const [isPlaying, setIsPlaying] = useState(false);
-            const [bpm, setBpm] = useState(130);
+            const [bpm, setBpm] = useState(128);
             const [currentTime, setCurrentTime] = useState(0);
-            const [reduction, setReduction] = useState(0); // Para el medidor del limitador
-            const [lfoValue, setLfoValue] = useState(0);   // Para el knob fantasma visual
+            const [logs, setLogs] = useState([{time: 'INIT', msg: 'NEXUS CORE INTEGRADO...'}]);
+            const [locked, setLocked] = useState(true);
 
-            // Datos de pistas
-            const tracks = [
-                { id: 1, name: "KICK_MAIN", color: "bg-red-600", regions: [{s:0,w:40}, {s:160,w:40}, {s:320,w:40}, {s:480,w:40}], vol: 90 },
-                { id: 2, name: "BASS_AUTO", color: "bg-cyan-500", regions: [{s:0,w:160}, {s:160,w:160}, {s:320,w:160}, {s:480,w:160}], vol: 80 },
-                { id: 3, name: "HI_HATS", color: "bg-yellow-500", regions: Array.from({length:16},(_,i)=>({s:i*40,w:10})), vol: 50 }
-            ];
+            // ESTADO SECUENCIADOR
+            const [tracks, setTracks] = useState([
+                { id: 1, name: "KICK_PRIME", color: "bg-red-500", regions: [{s:0,w:40}, {s:160,w:40}, {s:320,w:40}, {s:480,w:40}], vol: 90 },
+                { id: 2, name: "SNARE_DATA", color: "bg-cyan-500", regions: [{s:160,w:40}, {s:480,w:40}], vol: 80 },
+                { id: 3, name: "HH_GLITCH", color: "bg-yellow-500", regions: Array.from({length:16},(_,i)=>({s:i*40,w:10})), vol: 50 }
+            ]);
 
-            const reqRef = useRef();
+            // REFS & LOOPS
+            const canvasRef = useRef(null);
+            const reqRef = useRef(null);
             const nextNoteTime = useRef(0);
 
-            // BUCLE DE UI (60FPS)
-            const animate = () => {
-                // 1. Simular movimiento del LFO para la UI
-                // (0.2 Hz = periodo de 5000ms)
-                const time = Date.now();
-                const angle = Math.sin(time * 0.0012) * 135; // Oscila entre -135 y +135 grados
-                setLfoValue(angle);
+            // LOGICA DE INTEGRACIÓN (El Puente)
+            useEffect(() => {
+                // Publicar Alpha al motor de audio globalmente (Hack soberano)
+                window.globalAlpha = alpha;
+                nexus.setIdentityCorruption(alpha);
+                if (Math.random() > 0.9) addLog(`IDENTIDAD RECONFIGURADA: ${(alpha*100).toFixed(0)}% SINTÉTICO`);
+            }, [alpha]);
 
-                // 2. Leer reducción del compresor (Simulado visualmente basado en amplitud)
-                if(isPlaying) {
-                     const data = new Uint8Array(engine.analyser.frequencyBinCount);
-                     engine.analyser.getByteTimeDomainData(data);
-                     let max = 0;
-                     for(let i=0; i<data.length; i++) {
-                         const v = Math.abs(data[i] - 128);
-                         if(v > max) max = v;
-                     }
-                     // Si la amplitud es muy alta, mostramos "reducción"
-                     setReduction(max > 80 ? Math.min((max-80), 5) : 0);
-                } else {
-                    setReduction(0);
+            const addLog = (msg) => setLogs(prev => [{time: new Date().toLocaleTimeString().split(' ')[0], msg}, ...prev.slice(0, 5)]);
+
+            // BUCLE MAESTRO (Visuales + Scheduler)
+            const loop = useCallback(() => {
+                // 1. VISUALIZADOR (EL OJO)
+                if (canvasRef.current) {
+                    const cvs = canvasRef.current;
+                    const ctx = cvs.getContext('2d');
+                    const w = cvs.width;
+                    const h = cvs.height;
+                    const data = new Uint8Array(nexus.analyser.frequencyBinCount);
+                    nexus.analyser.getByteFrequencyData(data);
+
+                    ctx.fillStyle = '#050505';
+                    ctx.fillRect(0,0,w,h);
+
+                    // Dibujar Espectro Circular (El Ojo de Dominus)
+                    const cx = w/2;
+                    const cy = h/2;
+                    const radius = 60;
+
+                    ctx.beginPath();
+                    for(let i=0; i<data.length; i+=10) {
+                        const v = data[i];
+                        const rad = (i / data.length) * Math.PI * 2;
+                        const len = (v / 255) * 50;
+                        const x = cx + Math.cos(rad) * (radius + len);
+                        const y = cy + Math.sin(rad) * (radius + len);
+                        const x2 = cx + Math.cos(rad) * (radius - len/2);
+                        const y2 = cy + Math.sin(rad) * (radius - len/2);
+
+                        ctx.strokeStyle = `rgba(6, 182, 212, ${v/255})`;
+                        ctx.lineWidth = 2;
+                        ctx.moveTo(x2, y2);
+                        ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+
+                    // Núcleo del Ojo (Reacciona a Alpha)
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, radius * alpha, 0, Math.PI * 2);
+                    ctx.strokeStyle = alpha > 0.8 ? '#06b6d4' : '#ef4444';
+                    ctx.stroke();
                 }
 
-                if(isPlaying) {
-                    const pxPerSec = (40 / (60/bpm));
-                    setCurrentTime((engine.ctx.currentTime * pxPerSec) % 640);
-                    reqRef.current = requestAnimationFrame(animate);
-                }
-            };
+                // 2. SCHEDULER (AUDIO)
+                if (isPlaying) {
+                    const lookAhead = 0.1;
+                    const secsPerBeat = 60.0 / bpm;
+                    const pxPerBeat = 40; // Escala visual
 
-            // SCHEDULER DE AUDIO
-            const schedule = useCallback(() => {
-                const lookAhead = 0.1;
-                const secsPerBeat = 60.0 / bpm;
-                const pxPerBeat = 40;
-                const pxPerSec = pxPerBeat / secsPerBeat;
-
-                while (nextNoteTime.current < engine.ctx.currentTime + lookAhead) {
-                    const beatDur = 0.25 * secsPerBeat;
-                    // Lógica de disparo
-                    const cycleTime = (nextNoteTime.current * pxPerSec) % 640; // Loop de 16 beats (640px)
-
-                    tracks.forEach(t => {
-                        t.regions.forEach(r => {
-                            // Check overlap simple para demo
-                            if (cycleTime >= r.s && cycleTime < r.s + 10) { // Tolerancia
-                                engine.trigger(t.name, nextNoteTime.current, t.vol);
-                            }
+                    while (nextNoteTime.current < nexus.ctx.currentTime + lookAhead) {
+                        // Lógica de disparo simplificada
+                        const cycleTime = (nextNoteTime.current * (pxPerBeat/secsPerBeat)) % 640;
+                        tracks.forEach(t => {
+                            t.regions.forEach(r => {
+                                if (cycleTime >= r.s && cycleTime < r.s + 10) {
+                                    nexus.trigger(t.name, nextNoteTime.current, t.vol);
+                                }
+                            });
                         });
-                    });
-                    nextNoteTime.current += beatDur;
+                        nextNoteTime.current += 0.25 * secsPerBeat;
+                    }
+
+                    // Actualizar Playhead UI
+                    const pxPerSec = pxPerBeat / secsPerBeat;
+                    setCurrentTime((nexus.ctx.currentTime * pxPerSec) % 640);
                 }
-                if(isPlaying) setTimeout(schedule, 25);
-            }, [isPlaying, bpm]);
+
+                reqRef.current = requestAnimationFrame(loop);
+            }, [isPlaying, bpm, alpha, tracks]);
 
             useEffect(() => {
-                if(isPlaying) {
-                    engine.resume();
-                    nextNoteTime.current = engine.ctx.currentTime;
-                    schedule();
-                    animate();
+                if (isPlaying) {
+                    nexus.resume();
+                    nextNoteTime.current = nexus.ctx.currentTime;
+                    loop();
                 } else {
                     cancelAnimationFrame(reqRef.current);
+                    // Mantener visualizador vivo incluso en pausa (modo vigilancia)
+                    reqRef.current = requestAnimationFrame(loop);
                 }
-            }, [isPlaying]);
+                return () => cancelAnimationFrame(reqRef.current);
+            }, [isPlaying, loop]);
 
             useEffect(() => {
                 lucide.createIcons();
             }, []);
 
+            // UI HELPERS
+            const togglePlay = () => setIsPlaying(!isPlaying);
+
             return (
-                <div className="h-screen flex flex-col bg-black overflow-hidden relative">
+                <div className="h-screen w-screen flex flex-col bg-black relative">
                     <div className="scanline"></div>
 
-                    {/* HEADER PRO */}
-                    <header className="h-24 bg-[#080808] border-b border-zinc-800 flex items-center justify-between px-6 z-10">
-                        <div>
-                            <h1 className="text-2xl font-black text-white tracking-widest italic">OMEGA<span className="text-cyan-500">_AUTO</span></h1>
-                            <div className="text-[10px] text-zinc-500 font-mono flex items-center gap-2">
-                                <i data-lucide="shield-check" className="text-green-500" style={{ width: '10px', height: '10px' }}></i>
-                                <span>LIMITER PROTECTION: ACTIVE</span>
-                            </div>
-                        </div>
-
-                        {/* RACK DE EFECTOS AUTOMATIZADOS */}
-                        <div className="flex gap-8 bg-[#111] p-2 rounded-lg border border-zinc-800 shadow-xl">
-
-                            {/* LIMITER METER */}
-                            <div className="flex flex-col items-center gap-1">
-                                <span className="text-[9px] font-bold text-zinc-500">GAIN REDUCTION</span>
-                                <div className="flex gap-1">
-                                    {[5,4,3,2,1].map(n => (
-                                        <div key={n} className={`limiter-led ${reduction >= n ? (n>3?'active':'warn') : ''}`}></div>
-                                    ))}
-                                </div>
-                                <span className="text-[9px] text-zinc-600 font-mono">COMPRESSOR</span>
-                            </div>
-
-                            <div className="w-px bg-zinc-800"></div>
-
-                            {/* AUTO-KNOB (LFO) */}
-                            <div className="flex flex-col items-center gap-1">
-                                <span className="text-[9px] font-bold text-cyan-600 animate-pulse">AUTO-FILTER</span>
-                                <div className="knob-container">
-                                    {/* El knob que se mueve solo */}
-                                    <div className="knob-ghost" style={{ transform: `rotate(${lfoValue}deg)` }}></div>
-                                    <div className="knob-ring" style={{ transform: `rotate(${lfoValue}deg)`, borderColor: isPlaying ? '#06b6d4' : '#333' }}></div>
-                                </div>
-                                <span className="text-[9px] text-zinc-600 font-mono">LFO: 0.2Hz</span>
-                            </div>
-                        </div>
-
-                        {/* TRANSPORT */}
+                    {/* BARRA SUPERIOR: ESTADO DEL SISTEMA */}
+                    <header className="h-12 border-b border-zinc-900 flex items-center justify-between px-4 bg-[#080808] z-20">
                         <div className="flex items-center gap-4">
-                            <button data-testid="play-pause-button" onClick={() => setIsPlaying(!isPlaying)} className={`w-14 h-14 rounded-full flex items-center justify-center transition-all ${isPlaying ? 'bg-red-600 shadow-[0_0_30px_#dc2626]' : 'bg-zinc-800 hover:bg-zinc-700'}`}>
-                                {isPlaying ? <i data-lucide="pause" style={{ fill: 'white' }}></i> : <i data-lucide="play" style={{ fill: 'white', marginLeft: '4px' }}></i>}
-                            </button>
+                            <h1 className="text-xl font-black text-white tracking-widest italic glow-text">DOMINUS<span className="text-cyan-500">_NEXUS</span></h1>
+                            <div className="h-4 w-px bg-zinc-800"></div>
+                            <div className="flex items-center gap-2 text-[10px] font-mono text-cyan-700">
+                                <i data-lucide="activity" style={{ width: '12px', height: '12px' }}></i> <span>SYS: ONLINE</span>
+                                <span className="text-zinc-600">|</span>
+                                <i data-lucide="shield-check" style={{ width: '12px', height: '12px' }}></i> <span>SEC: {locked ? 'LOCKED' : 'OPEN'}</span>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                             <div className="text-[10px] font-mono text-zinc-500">{new Date().toLocaleDateString()} // SOBERANÍA_V1</div>
                         </div>
                     </header>
 
-                    {/* TIMELINE */}
-                    <div className="flex-1 bg-[#030303] relative overflow-hidden flex flex-col justify-center">
-                        <div className="absolute inset-0 opacity-10" style={{backgroundImage: 'linear-gradient(90deg, #222 1px, transparent 1px)', backgroundSize: '40px 100%'}}></div>
+                    {/* CUERPO PRINCIPAL (GRID DASHBOARD) */}
+                    <div className="flex-1 grid grid-cols-12 gap-0 overflow-hidden">
 
-                        {/* PLAYHEAD */}
-                        <div className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-50 shadow-[0_0_15px_red]" style={{ left: currentTime }}></div>
+                        {/* COLUMNA IZQUIERDA: IDENTIDAD & PARADOJA (25%) */}
+                        <aside className="col-span-3 border-r border-zinc-900 bg-[#050505] p-6 flex flex-col gap-6 relative">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-cyan-900 to-transparent opacity-50"></div>
 
-                        {tracks.map(t => (
-                            <div key={t.id} className="h-32 border-b border-zinc-900 flex items-center relative group">
-                                <div className="w-48 bg-black/50 border-r border-zinc-800 h-full flex flex-col justify-center p-4 z-10 backdrop-blur-sm">
-                                    <span className="font-bold text-zinc-300 tracking-wider">{t.name}</span>
-                                    {t.name.includes('BASS') && (
-                                        <span className="text-[9px] text-cyan-500 flex items-center gap-1 mt-1">
-                                            <i data-lucide="gauge" style={{ width: '10px', height: '10px' }}></i> LFO LINKED
-                                        </span>
-                                    )}
+                            {/* MÓDULO ALPHA */}
+                            <div className="bg-zinc-900/30 border border-zinc-800 p-4 rounded-lg border-glow">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-xs font-bold text-cyan-500 flex items-center gap-2"><i data-lucide="fingerprint" style={{ width: '14px', height: '14px' }}></i> PARADOJA (α)</h3>
+                                    <span className="text-[10px] font-mono text-white">{(alpha * 100).toFixed(0)}%</span>
                                 </div>
-                                <div className="flex-1 relative h-full">
-                                    {t.regions.map((r,i) => (
-                                        <div key={i} className={`absolute top-4 bottom-4 rounded ${t.color} opacity-40 border border-white/20`}
-                                             style={{ left: r.s, width: r.w }}>
+                                <input type="range" min="0" max="1" step="0.01" value={alpha} onChange={e => setAlpha(parseFloat(e.target.value))} className="w-full mb-2"/>
+                                <div className="flex justify-between text-[8px] font-mono text-zinc-600 uppercase">
+                                    <span>Humano</span>
+                                    <span>Simbiosis</span>
+                                    <span>Dominus</span>
+                                </div>
+                                <p className="text-[9px] text-zinc-500 mt-2 leading-tight">
+                                    ADVERTENCIA: Niveles altos de α causan distorsión cognitiva y artefactos de audio en el secuenciador.
+                                </p>
+                            </div>
+
+                            {/* LOGS */}
+                            <div className="flex-1 bg-black border border-zinc-900 p-2 font-mono text-[9px] text-zinc-400 overflow-hidden relative">
+                                <div className="absolute top-0 right-0 p-1 opacity-50"><i data-lucide="terminal" style={{ width: '10px', height: '10px' }}></i></div>
+                                <div className="space-y-1">
+                                    {logs.map((l, i) => (
+                                        <div key={i} className="border-b border-zinc-900/50 pb-1">
+                                            <span className="text-cyan-900">[{l.time}]</span> {l.msg}
                                         </div>
                                     ))}
                                 </div>
                             </div>
-                        ))}
+                        </aside>
+
+                        {/* COLUMNA CENTRAL: EL OJO & TRANSPORTE (50%) */}
+                        <main className="col-span-6 bg-black flex flex-col relative">
+
+                            {/* VISUALIZADOR PRINCIPAL */}
+                            <div className="flex-1 flex items-center justify-center relative bg-[radial-gradient(circle_at_center,_#0a0a0a_0%,_#000_100%)]">
+                                <canvas ref={canvasRef} width="400" height="300" className="opacity-90"></canvas>
+
+                                {/* HUD OVERLAY */}
+                                <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4">
+                                    <div className="flex justify-between text-[10px] font-mono text-zinc-700">
+                                        <span>CH: MASTER</span>
+                                        <span>PEAK: -2.3dB</span>
+                                    </div>
+                                    <div className="text-center">
+                                        <p className="text-[9px] tracking-[0.5em] text-cyan-900/50 uppercase animate-pulse-slow">Esperando Comando de Voz...</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* BARRA DE TRANSPORTE (DAW CONTROL) */}
+                            <div className="h-24 border-t border-zinc-900 bg-[#080808] p-4 flex items-center justify-center gap-8">
+                                <div className="flex flex-col items-center">
+                                    <span className="text-[9px] font-bold text-zinc-600 mb-1">BPM</span>
+                                    <input type="number" value={bpm} onChange={e => setBpm(e.target.value)} className="bg-black border border-zinc-800 text-cyan-500 w-12 text-center text-xs p-1 font-mono rounded"/>
+                                </div>
+
+                                <button data-testid="play-pause-button" onClick={togglePlay} className={`w-16 h-16 rounded-full flex items-center justify-center border-2 transition-all ${isPlaying ? 'border-cyan-500 bg-cyan-900/20 shadow-[0_0_30px_rgba(6,182,212,0.4)]' : 'border-zinc-700 hover:border-zinc-500'}`}>
+                                    {isPlaying ? <i data-lucide="pause" className="text-cyan-400" style={{ fill: 'currentColor' }}></i> : <i data-lucide="play" className="text-zinc-400" style={{ fill: 'currentColor', marginLeft: '4px' }}></i>}
+                                </button>
+
+                                <div className="flex flex-col items-center">
+                                    <span className="text-[9px] font-bold text-zinc-600 mb-1">REC</span>
+                                    <button className="w-8 h-8 rounded-full bg-red-900/20 border border-red-900/50 flex items-center justify-center hover:bg-red-900/40">
+                                        <div className="w-2 h-2 bg-red-600 rounded-full animate-pulse"></div>
+                                    </button>
+                                </div>
+                            </div>
+                        </main>
+
+                        {/* COLUMNA DERECHA: SECUENCIADOR & MIXER (25%) */}
+                        <aside className="col-span-3 border-l border-zinc-900 bg-[#050505] flex flex-col">
+                            <div className="p-3 border-b border-zinc-900 flex justify-between items-center">
+                                <span className="text-xs font-bold text-zinc-400 flex items-center gap-2"><i data-lucide="layers" style={{ width: '12px', height: '12px' }}></i> PATRONES</span>
+                                <PlusButton />
+                            </div>
+
+                            {/* MINI SEQUENCER VIEW */}
+                            <div className="flex-1 overflow-y-auto custom-scrollbar p-2 space-y-2">
+                                {tracks.map(t => (
+                                    <div key={t.id} className="bg-zinc-900/40 border border-zinc-800 rounded p-2 hover:border-zinc-600 transition-colors group">
+                                        <div className="flex justify-between items-center mb-2">
+                                            <div className="flex items-center gap-2">
+                                                <div className={`w-2 h-2 rounded-full ${t.color}`}></div>
+                                                <span className="text-[10px] font-bold text-zinc-300">{t.name}</span>
+                                            </div>
+                                            <div className="flex gap-1">
+                                                <div className="w-8 h-1 bg-cyan-900/50 rounded overflow-hidden">
+                                                    <div className="h-full bg-cyan-500" style={{width: `${t.vol}%`}}></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        {/* Mini Timeline Representation */}
+                                        <div className="h-4 bg-black w-full rounded relative overflow-hidden">
+                                            {t.regions.map((r, i) => (
+                                                <div key={i} className={`absolute top-0 bottom-0 ${t.color} opacity-40`} style={{left: `${(r.s/640)*100}%`, width: `${(r.w/640)*100}%`}}></div>
+                                            ))}
+                                            {/* Playhead Ghost */}
+                                            <div className="absolute top-0 bottom-0 w-px bg-white/50" style={{left: `${(currentTime/640)*100}%`}}></div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            {/* CPU STATS */}
+                            <div className="h-12 bg-black border-t border-zinc-900 flex items-center justify-between px-4 text-[9px] font-mono text-zinc-600">
+                                <div className="flex items-center gap-2"><i data-lucide="cpu" style={{ width: '10px', height: '10px' }}></i> <span>DSP: {isPlaying ? '12%' : '0%'}</span></div>
+                                <div className="flex items-center gap-2"><i data-lucide="radio" style={{ width: '10px', height: '10px' }}></i> <span>OUT: L/R</span></div>
+                            </div>
+                        </aside>
                     </div>
                 </div>
             );
         };
 
+        const PlusButton = () => <button className="text-cyan-600 hover:text-cyan-400 text-xs">+</button>;
+
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<OmegaAuto />);
+        root.render(<NexusCore />);
     </script>
 </body>
 </html>
