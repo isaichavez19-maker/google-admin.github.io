@@ -3,569 +3,231 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VOX UMBREA MK-III: DAEMON EDITION</title>
+    <title>OMEGA DAW v3.0 | DAEMON CORE ACTIVE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --bg: #020202;
-            --panel: #0f0f0f;
-            --border: #333;
-            --cyan: #00f3ff;
-            --magenta: #ff0055;
-            --gold: #ffcc00;
-            --text: #c0c0c0;
-            --font: 'Courier New', monospace;
-        }
-
-        body {
-            background-color: var(--bg);
-            color: var(--text);
-            font-family: var(--font);
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-            overflow: hidden;
-            user-select: none;
-        }
-
-        /* --- VISUALIZADOR (EL OJO) --- */
-        #visualizer-container {
-            height: 120px;
-            background: #000;
-            border-bottom: 1px solid var(--cyan);
-            position: relative;
-        }
-        canvas { width: 100%; height: 100%; display: block; }
-        .hud-text {
-            position: absolute;
-            top: 5px; left: 10px;
-            font-size: 0.7rem;
-            color: var(--cyan);
-            opacity: 0.7;
-        }
-
-        /* --- CONTROLES GLOBALES --- */
-        header {
-            padding: 10px;
-            background: var(--panel);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        button {
-            background: #000;
-            border: 1px solid var(--cyan);
-            color: var(--cyan);
-            padding: 8px 20px;
-            font-family: inherit;
-            font-weight: bold;
-            cursor: pointer;
-            text-transform: uppercase;
-            box-shadow: 0 0 5px rgba(0, 243, 255, 0.2);
-            transition: all 0.2s;
-        }
-        button:hover { background: var(--cyan); color: #000; }
-        button.active { background: var(--magenta); border-color: var(--magenta); color: #fff; }
-
-        input[type=range] { accent-color: var(--magenta); cursor: pointer; }
-
-        /* --- SECUENCIADOR --- */
-        #sequencer {
-            padding: 15px;
-            flex: 0 0 auto;
-            border-bottom: 1px dashed var(--border);
-        }
-        .track { display: flex; align-items: center; margin-bottom: 8px; }
-        .label { width: 80px; font-size: 0.7rem; color: var(--gold); letter-spacing: 1px;}
-        .steps { display: flex; gap: 4px; flex: 1; }
-        .step {
-            flex: 1; height: 25px;
-            background: #1a1a1a;
-            border: 1px solid #333;
-            cursor: pointer;
-        }
-        .step.on { background: var(--gold); box-shadow: 0 0 8px var(--gold); border-color: #fff; }
-        .step.trigger { transform: scale(1.1); filter: brightness(1.5); }
-
-        /* --- MEZCLADORA & FX --- */
-        #mixer-deck {
-            flex: 1;
-            display: flex;
-            padding: 10px;
-            gap: 15px;
-            background: #080808;
-        }
-
-        .deck-col {
-            flex: 1;
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            background: rgba(255,255,255,0.02);
-        }
-        .deck-title { color: var(--magenta); font-size: 0.8rem; border-bottom: 1px solid #333; padding-bottom: 5px; }
-
-        .knob-panel {
-            display: flex;
-            flex-direction: column;
-            gap: 5px;
-            margin-top: auto;
-            padding-top: 10px;
-            border-top: 1px solid #333;
-        }
-        .small-label { font-size: 0.6rem; color: #666; }
-
-        /* --- CROSSFADER ZONE --- */
-        #master-fx {
-            padding: 15px;
-            background: var(--panel);
-            border-top: 1px solid var(--cyan);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 20px;
-        }
-        #xfader { width: 200px; }
-
+        body { background-color: #030303; color: #e5e5e5; font-family: 'Rajdhani', sans-serif; overflow: hidden; }
+        .font-mono { font-family: 'JetBrains Mono', monospace; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #09090b; }
+        ::-webkit-scrollbar-thumb { background: #27272a; border-radius: 3px; }
+        .timeline-grid { background-image: linear-gradient(to right, #18181b 1px, transparent 1px), linear-gradient(to bottom, #18181b 1px, transparent 1px); background-size: 40px 100%; }
+        .playhead { box-shadow: 0 0 15px rgba(239, 68, 68, 0.6); }
+        .fader-track { -webkit-appearance: none; width: 100%; height: 4px; background: #27272a; border-radius: 2px; outline: none; }
+        .fader-track::-webkit-slider-thumb { -webkit-appearance: none; width: 12px; height: 24px; background: #d4d4d8; cursor: pointer; box-shadow: 0 0 10px rgba(255,255,255,0.3); }
     </style>
 </head>
 <body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback, useMemo } = React;
 
-    <div id="visualizer-container">
-        <div class="hud-text">:: ANALIZADOR ESPECTRAL // KERNEL: ACTIVO ::</div>
-        <canvas id="scope"></canvas>
-    </div>
-
-    <header>
-        <div>
-            <button id="pwrBtn" onclick="toggleSystem()">INICIAR SISTEMA</button>
-            <span style="margin-left:10px; font-size:0.8rem; color:#666;" id="status">ESPERANDO...</span>
-        </div>
-        <div style="display:flex; align-items:center; gap:10px;">
-            <label class="small-label">TEMPO (BPM)</label>
-            <input type="range" min="60" max="160" value="95" oninput="updateBPM(this.value)">
-            <span id="bpmDisplay" style="width:30px; text-align:right; font-size:0.8rem;">95</span>
-        </div>
-    </header>
-
-    <div id="sequencer">
-        <div class="track">
-            <div class="label">KICK</div>
-            <div class="steps" id="row-kick"></div>
-        </div>
-        <div class="track">
-            <div class="label">SNARE</div>
-            <div class="steps" id="row-snare"></div>
-        </div>
-        <div class="track">
-            <div class="label">HIHAT</div>
-            <div class="steps" id="row-hihat"></div>
-        </div>
-        <div class="track">
-            <div class="label" style="color:var(--cyan)">BASS (FM)</div>
-            <div class="steps" id="row-bass"></div>
-        </div>
-    </div>
-
-    <div id="mixer-deck">
-        <!-- DECK A -->
-        <div class="deck-col">
-            <div class="deck-title">DECK A [CUMBIA/ROOTS]</div>
-            <input type="file" accept="audio/*" onchange="loadDeck('A', this)" style="font-size:0.7rem;">
-            <button onclick="toggleDeck('A')">PLAY / STOP</button>
-
-            <div class="knob-panel">
-                <span class="small-label">FILTRO (LPF)</span>
-                <input type="range" min="0" max="100" value="100" oninput="setFilter('A', this.value)">
-            </div>
-        </div>
-
-        <!-- FX RACK -->
-        <div class="deck-col" style="flex: 0.5; border-color: var(--cyan);">
-            <div class="deck-title" style="color:var(--cyan)">FX: DUB ECHO</div>
-            <div class="knob-panel" style="border:none;">
-                <span class="small-label">TIEMPO (DELAY)</span>
-                <input type="range" min="0" max="100" value="30" oninput="setDelayTime(this.value)">
-                <span class="small-label">FEEDBACK</span>
-                <input type="range" min="0" max="90" value="40" oninput="setDelayFeedback(this.value)">
-                <span class="small-label">ENVÍO (WET)</span>
-                <input type="range" min="0" max="100" value="0" oninput="setDelayWet(this.value)">
-            </div>
-        </div>
-
-        <!-- DECK B -->
-        <div class="deck-col">
-            <div class="deck-title">DECK B [HIPHOP/TRAP]</div>
-            <input type="file" accept="audio/*" onchange="loadDeck('B', this)" style="font-size:0.7rem;">
-            <button onclick="toggleDeck('B')">PLAY / STOP</button>
-
-            <div class="knob-panel">
-                <span class="small-label">FILTRO (HPF)</span>
-                <input type="range" min="0" max="100" value="0" oninput="setFilter('B', this.value)">
-            </div>
-        </div>
-    </div>
-
-    <div id="master-fx">
-        <span style="color:var(--gold); font-size:0.8rem;">A</span>
-        <input type="range" id="xfader" min="0" max="100" value="50" oninput="crossfade(this.value)">
-        <span style="color:var(--magenta); font-size:0.8rem;">B</span>
-    </div>
-
-    <script>
-        // --- NÚCLEO DEL AUDIO ---
+        // --- NÚCLEO 1: CONTEXTO DE AUDIO Y SINTE PROPIO ---
         const AudioContext = window.AudioContext || window.webkitAudioContext;
-        let ctx;
-        let masterGain;
-        let compressor;
-        let analyser;
+        const ctx = new AudioContext();
+        const masterGain = ctx.createGain();
+        masterGain.connect(ctx.destination);
 
-        // --- BUS DE EFECTOS (DELAY) ---
-        let delayNode, feedbackNode, wetGainNode;
+        // Síntesis interna simple para KICK, SNARE, HIHAT
+        const playSynth = (trackName, time, volume) => {
+            const gain = ctx.createGain();
+            gain.gain.setValueAtTime(volume / 100, time);
+            gain.connect(masterGain);
 
-        // --- ESTADO ---
-        let isRunning = false;
-        let bpm = 95;
-        let currentStep = 0;
-        let nextNoteTime = 0;
-        let timerID;
-        const lookahead = 25.0;
-        const scheduleAheadTime = 0.1;
-
-        // --- DATOS DE SECUENCIA ---
-        const tracks = ['kick', 'snare', 'hihat', 'bass'];
-        const pattern = {
-            kick:  [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0],
-            snare: [0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0],
-            hihat: [1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1],
-            bass:  [1,0,0,1, 0,0,1,0, 1,0,0,1, 0,1,0,0]
+            if (trackName.includes('KICK')) {
+                const osc = ctx.createOscillator();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(150, time);
+                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.3);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.5);
+                osc.connect(gain);
+                osc.start(time);
+                osc.stop(time + 0.5);
+            } else if (trackName.includes('SNARE')) {
+                const osc = ctx.createOscillator();
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(220, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.2);
+                osc.connect(gain);
+                osc.start(time);
+                osc.stop(time + 0.2);
+            } else if (trackName.includes('HI_HATS')) {
+                const osc = ctx.createOscillator();
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(1000, time);
+                gain.gain.exponentialRampToValueAtTime(0.001, time + 0.05);
+                osc.connect(gain);
+                osc.start(time);
+                osc.stop(time + 0.05);
+            }
         };
 
-        // --- INICIALIZACIÓN ---
-        function initAudio() {
-            if(ctx) return;
-            ctx = new AudioContext();
+        const INITIAL_TRACKS = [
+            { id: 1, name: "KICK_DMZ", color: "bg-red-500", regions: [{ start: 0, width: 40, duration: 0.5 }, { start: 160, width: 40, duration: 0.5 }, { start: 320, width: 40, duration: 0.5 }], muted: false, solo: false, vol: 80 },
+            { id: 2, name: "SNARE_SYNTH", color: "bg-orange-500", regions: [{ start: 80, width: 40, duration: 0.2 }, { start: 240, width: 40, duration: 0.2 }], muted: false, solo: false, vol: 75 },
+            { id: 3, name: "HI_HATS_SEQ", color: "bg-yellow-500", regions: [{ start: 0, width: 800, duration: 0.05 }], muted: false, solo: false, vol: 60 },
+            { id: 4, name: "BASS_LINE", color: "bg-blue-500", regions: [{ start: 0, width: 160, duration: 0.8 }, { start: 320, width: 320, duration: 1.2 }], muted: false, solo: false, vol: 90 },
+        ];
 
-            // Cadena Master: Master -> Compressor -> Analyser -> Destination
-            masterGain = ctx.createGain();
-            compressor = ctx.createDynamicsCompressor();
-            compressor.threshold.setValueAtTime(-24, ctx.currentTime);
-            compressor.knee.setValueAtTime(30, ctx.currentTime);
-            compressor.ratio.setValueAtTime(12, ctx.currentTime);
+        const OmegaDAW = () => {
+            const [isPlaying, setIsPlaying] = useState(false);
+            const [bpm, setBpm] = useState(128);
+            const [currentTime, setCurrentTime] = useState(0); // Pixels
+            const [tracks, setTracks] = useState(INITIAL_TRACKS);
+            const playheadRef = useRef(0);
+            const nextNoteTime = useRef(0);
+            const lookAhead = 0.1; // 100ms de lookahead para latencia cuántica
 
-            analyser = ctx.createAnalyser();
-            analyser.fftSize = 256;
+            // --- NÚCLEO 2: SINCRONIZACIÓN CUÁNTICA (Scheduler) ---
+            const schedule = useCallback(() => {
+                if (!isPlaying) return;
 
-            masterGain.connect(compressor);
-            compressor.connect(analyser);
-            analyser.connect(ctx.destination);
+                while (nextNoteTime.current < ctx.currentTime + lookAhead) {
+                    const secondsPerBeat = 60.0 / bpm;
+                    const secondsPer16th = 0.25 * secondsPerBeat;
 
-            // Configurar FX (Dub Delay)
-            delayNode = ctx.createDelay();
-            delayNode.delayTime.value = 0.3; // Tiempo inicial
-            feedbackNode = ctx.createGain();
-            feedbackNode.gain.value = 0.4;
-            wetGainNode = ctx.createGain();
-            wetGainNode.gain.value = 0.0; // Apagado por defecto
+                    // Convertir currentTime visual (pixels) a tiempo real (seconds)
+                    // Asumimos 40px = 1/16 note para esta escala visual (minWidth: 1200px = 30 beats)
+                    const pixelsPerSecond = 1200 / (secondsPerBeat * 30);
 
-            // Ruteo del Delay: Envío Auxiliar
-            // Master -> WetGain -> Delay -> Feedback -> Delay
-            // Delay -> Master (Retorno)
-            // *Simplificación para este código*: Conectaremos los instrumentos al DelaySend
+                    // Iterar pistas y regiones para disparo sónico
+                    tracks.forEach(track => {
+                        if (track.muted || (tracks.some(t => t.solo) && !track.solo)) return;
 
-            // Vamos a crear un bus de envios global
-            window.fxBus = ctx.createGain();
-            window.fxBus.connect(wetGainNode);
-            wetGainNode.connect(delayNode);
-            delayNode.connect(feedbackNode);
-            feedbackNode.connect(delayNode);
-            delayNode.connect(masterGain); // El eco vuelve al master
+                        track.regions.forEach(region => {
+                            const regionStartSeconds = region.start / pixelsPerSecond;
 
-            initDecks();
-            visualize();
-        }
+                            // Lógica de disparo simple (requiere un scheduler más complejo para producción real)
+                            if (nextNoteTime.current >= regionStartSeconds && nextNoteTime.current <= regionStartSeconds + secondsPer16th) {
+                                playSynth(track.name, nextNoteTime.current, track.vol);
+                            }
+                        });
+                    });
 
-        function toggleSystem() {
-            if(!ctx) initAudio();
-            if(ctx.state === 'suspended') ctx.resume();
+                    nextNoteTime.current += secondsPer16th;
+                }
 
-            isRunning = !isRunning;
-            const btn = document.getElementById('pwrBtn');
-            const status = document.getElementById('status');
+                // Actualización visual desacoplada (para evitar latencia visual)
+                const visualTime = (ctx.currentTime / (60.0 / bpm)) * 40; // Convertir segundos a pixels visuales (40px por beat approx)
+                playheadRef.current = visualTime % 1200; // Loop visual
+                setCurrentTime(playheadRef.current);
 
-            if(isRunning) {
-                btn.classList.add('active');
-                btn.innerText = "DETENER SISTEMA";
-                status.innerText = "SECUENCIADOR: CORRIENDO";
-                currentStep = 0;
-                nextNoteTime = ctx.currentTime;
-                scheduler();
-            } else {
-                btn.classList.remove('active');
-                btn.innerText = "INICIAR SISTEMA";
-                status.innerText = "SISTEMA EN ESPERA";
-                clearTimeout(timerID);
-            }
-        }
+                requestAnimationFrame(schedule);
+            }, [isPlaying, bpm, tracks]);
 
-        // --- MOTOR DEL SECUENCIADOR ---
-        function nextNote() {
-            const secondsPerBeat = 60.0 / bpm;
-            nextNoteTime += 0.25 * secondsPerBeat; // Semicorcheas (16th)
-            currentStep = (currentStep + 1) % 16;
-        }
-
-        function scheduleNote(step, time) {
-            // UI Sync
-            requestAnimationFrame(() => {
-                document.querySelectorAll('.step').forEach(s => s.classList.remove('trigger'));
-                tracks.forEach(t => {
-                    const el = document.getElementById(`${t}-${step}`);
-                    if(el) el.classList.add('trigger');
-                });
-            });
-
-            // Audio Trigger
-            if(pattern.kick[step]) playDrum('kick', time);
-            if(pattern.snare[step]) playDrum('snare', time);
-            if(pattern.hihat[step]) playDrum('hihat', time);
-            if(pattern.bass[step]) playBass(time, step); // Nuevo Synth
-        }
-
-        function scheduler() {
-            while (nextNoteTime < ctx.currentTime + scheduleAheadTime) {
-                scheduleNote(currentStep, nextNoteTime);
-                nextNote();
-            }
-            timerID = setTimeout(scheduler, lookahead);
-        }
-
-        // --- SINTETIZADORES MEJORADOS ---
-        function playDrum(type, time) {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-
-            // Envío al Master y al FX Bus
-            gain.connect(masterGain);
-            gain.connect(window.fxBus); // Enviar a delay
-
-            if(type === 'kick') {
-                osc.frequency.setValueAtTime(150, time);
-                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
-                gain.gain.setValueAtTime(1, time);
-                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
-            } else if (type === 'snare') {
-                osc.type = 'triangle';
-                osc.frequency.setValueAtTime(250, time);
-                gain.gain.setValueAtTime(0.7, time);
-                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.2);
-                // Ruido blanco adicional para el snare
-                const noise = ctx.createBufferSource();
-                const buffer = ctx.createBuffer(1, ctx.sampleRate * 0.1, ctx.sampleRate);
-                const data = buffer.getChannelData(0);
-                for(let i=0; i < buffer.length; i++) data[i] = Math.random() * 2 - 1;
-                noise.buffer = buffer;
-                const noiseGain = ctx.createGain();
-                noiseGain.gain.value = 0.5;
-                noiseGain.connect(masterGain);
-                noiseGain.connect(window.fxBus);
-                noise.connect(noiseGain);
-                noise.start(time);
-            } else { // Hihat
-                // Sintesis FM simple para metálicos
-                osc.type = 'square';
-                osc.frequency.setValueAtTime(1200, time); // Alta frecuencia
-                // Modulador FM para inarmonicidad
-                /* Simplificado para rendimiento: Usar onda cuadrada corta */
-                gain.gain.setValueAtTime(0.3, time);
-                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
-
-                // Filtro paso alto para hihat
-                const hp = ctx.createBiquadFilter();
-                hp.type = 'highpass';
-                hp.frequency.value = 5000;
-                osc.disconnect();
-                osc.connect(hp);
-                hp.connect(gain);
-            }
-
-            osc.start(time);
-            osc.stop(time + 0.5);
-        }
-
-        function playBass(time, step) {
-            // Sintetizador de Bajo FM
-            const osc = ctx.createOscillator();
-            const mod = ctx.createOscillator();
-            const modGain = ctx.createGain();
-            const masterVol = ctx.createGain();
-
-            // Notas cambiantes según el paso (Secuencia melódica simple)
-            // Escala menor básica
-            const notes = [55, 55, 65, 55, 55, 55, 65, 73, 55, 55, 65, 55, 82, 73, 65, 55];
-            const freq = notes[step] || 55;
-
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(freq, time);
-
-            mod.type = 'sine';
-            mod.frequency.setValueAtTime(freq * 2, time); // Octava arriba
-            modGain.gain.setValueAtTime(300, time); // Indice de modulación
-
-            mod.connect(modGain);
-            modGain.connect(osc.frequency);
-
-            masterVol.gain.setValueAtTime(0.4, time);
-            masterVol.gain.setTargetAtTime(0, time + 0.1, 0.2); // Decay
-
-            osc.connect(masterVol);
-            masterVol.connect(masterGain);
-
-            osc.start(time);
-            mod.start(time);
-            osc.stop(time + 0.5);
-            mod.stop(time + 0.5);
-        }
-
-        // --- CONSTRUCCIÓN UI SECUENCIADOR ---
-        tracks.forEach(t => {
-            const row = document.getElementById(`row-${t}`);
-            for(let i=0; i<16; i++) {
-                const step = document.createElement('div');
-                step.className = `step ${pattern[t][i] ? 'on' : ''}`;
-                step.id = `${t}-${i}`;
-                step.onclick = () => {
-                    pattern[t][i] = pattern[t][i] ? 0 : 1;
-                    step.classList.toggle('on');
-                };
-                row.appendChild(step);
-            }
-        });
-
-        // --- LOGICA DECKS (MEZCLA) ---
-        const decks = { A: {}, B: {} };
-
-        function initDecks() {
-            ['A', 'B'].forEach(id => {
-                decks[id].gain = ctx.createGain();
-                decks[id].filter = ctx.createBiquadFilter();
-                decks[id].playing = false;
-
-                if(id === 'A') {
-                    decks[id].filter.type = 'lowpass';
-                    decks[id].filter.frequency.value = 22000;
+            useEffect(() => {
+                if (isPlaying) {
+                    ctx.resume();
+                    nextNoteTime.current = ctx.currentTime;
+                    requestAnimationFrame(schedule);
                 } else {
-                    decks[id].filter.type = 'highpass';
-                    decks[id].filter.frequency.value = 0;
+                    cancelAnimationFrame(schedule);
                 }
+            }, [isPlaying, schedule]);
 
-                decks[id].filter.connect(decks[id].gain);
-                decks[id].gain.connect(masterGain);
-                // Envio a FX también
-                decks[id].gain.connect(window.fxBus);
-            });
-            crossfade(50);
-        }
-
-        function loadDeck(id, input) {
-            if(!ctx) initAudio();
-            const file = input.files[0];
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = e => {
-                ctx.decodeAudioData(e.target.result, buffer => {
-                    decks[id].buffer = buffer;
-                });
+            const togglePlay = () => {
+                setIsPlaying(!isPlaying);
             };
-            reader.readAsArrayBuffer(file);
-        }
 
-        function toggleDeck(id) {
-            if(!decks[id].buffer) return;
-            if(decks[id].playing) {
-                decks[id].source.stop();
-                decks[id].playing = false;
-            } else {
-                const src = ctx.createBufferSource();
-                src.buffer = decks[id].buffer;
-                src.loop = true;
-                src.connect(decks[id].filter);
-                src.start(0);
-                decks[id].source = src;
-                decks[id].playing = true;
-            }
-        }
+            useEffect(() => {
+                lucide.createIcons();
+        }, []);
 
-        function setFilter(id, val) {
-            const freq = (val / 100) * 10000;
-            if(id === 'A') decks[id].filter.frequency.value = freq + 50;
-            else decks[id].filter.frequency.value = freq;
-        }
+            // --- NÚCLEO 3: MEZCLADOR Y ESTADO ---
+            const toggleMute = (id) => { setTracks(tracks.map(t => t.id === id ? { ...t, muted: !t.muted } : t)); };
+            const toggleSolo = (id) => { setTracks(tracks.map(t => { if (t.id === id) return { ...t, solo: !t.solo }; return { ...t, solo: false }; })); };
+            const updateVol = (id, val) => { setTracks(tracks.map(t => t.id === id ? { ...t, vol: val } : t)); };
 
-        // --- FX CONTROL ---
-        function setDelayTime(val) {
-            // 0 - 100 -> 0.05s - 1.0s
-            if(delayNode) delayNode.delayTime.value = 0.05 + (val/100);
-        }
-        function setDelayFeedback(val) {
-            if(feedbackNode) feedbackNode.gain.value = val / 100;
-        }
-        function setDelayWet(val) {
-            if(wetGainNode) wetGainNode.gain.value = val / 100;
-        }
+            return (
+                <div className="flex flex-col h-screen bg-black text-zinc-300">
+                    {/* 1. HEADER / TRANSPORT BAR */}
+                    <header className="h-16 bg-zinc-900 border-b border-zinc-800 flex items-center justify-between px-6 z-20">
+                        <div className="flex items-center gap-6">
+                            <div className="flex flex-col">
+                                <h1 className="text-xl font-bold tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-600">OMEGA<span className="text-white">_DAW</span></h1>
+                                <span className="text-[10px] text-zinc-500 font-mono tracking-tighter">CORE ACTIVE v3.0</span>
+                            </div>
+                            <div className="bg-black border border-zinc-700 rounded px-4 py-1 font-mono text-cyan-400 flex gap-4">
+                                <div><span className="text-zinc-600 text-[10px] block">BPM</span><span className="text-xl font-bold">{bpm}</span></div>
+                                <div><span className="text-zinc-600 text-[10px] block">TIME</span><span className="text-xl font-bold">{(ctx.currentTime).toFixed(3)}s</span></div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <button data-testid="play-pause-button" onClick={togglePlay} className={`p-4 rounded-full transition-all duration-200 ${isPlaying ? 'bg-red-500 text-white shadow-[0_0_20px_rgba(239,68,68,0.5)]' : 'bg-cyan-600 text-white hover:bg-cyan-500'}`}>
+                                {isPlaying ? <i data-lucide="pause" style={{ fill: 'currentColor' }}></i> : <i data-lucide="play" style={{ fill: 'currentColor', marginLeft: '4px' }}></i>}
+                            </button>
+                            <button data-testid="stop-button" onClick={() => { setIsPlaying(false); setCurrentTime(0); playheadRef.current = 0; }} className="p-3 rounded-full hover:bg-zinc-800 text-zinc-400"><i data-lucide="square" style={{ fill: 'currentColor' }}></i></button>
+                        </div>
+                         <div className="flex items-center gap-4 text-xs font-mono text-zinc-500">
+                            <div className="flex items-center gap-2"><i data-lucide="cpu"></i><span>CPU: {((playheadRef.current % 100)/10).toFixed(1)}%</span></div>
+                            <div className="flex items-center gap-2"><i data-lucide="activity"></i><span>SYNTH: ACTIVE</span></div>
+                        </div>
+                    </header>
 
-        function crossfade(val) {
-            if(!decks.A.gain) return;
-            const x = val / 100;
-            // Equal power crossfade curve
-            decks.A.gain.gain.value = Math.cos(x * 0.5 * Math.PI);
-            decks.B.gain.gain.value = Math.cos((1 - x) * 0.5 * Math.PI);
-        }
+                    {/* 2. AREA DE TRABAJO */}
+                    <div className="flex-1 flex overflow-hidden">
+                        <div className="w-80 bg-zinc-900 border-r border-zinc-800 flex flex-col z-10 overflow-y-auto">
+                            <div className="p-2 border-b border-zinc-800 bg-zinc-900/90 sticky top-0 flex justify-between items-center"><span className="text-xs font-bold text-zinc-500 pl-2">PISTAS SÓNICAS</span><button className="p-1 hover:bg-zinc-800 rounded text-cyan-500"><i data-lucide="plus"></i></button></div>
+                            {tracks.map(track => (
+                                <div key={track.id} className="h-24 border-b border-zinc-800 bg-zinc-800/30 p-3 flex flex-col justify-between group hover:bg-zinc-800/50 transition-colors">
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <div className={`w-3 h-3 rounded-full ${track.color} shadow-[0_0_8px_currentColor]`}></div>
+                                        <span className="font-bold text-sm text-zinc-200 tracking-wide">{track.name}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <button onClick={() => toggleMute(track.id)} className={`px-2 py-0.5 text-[10px] font-bold rounded border ${track.muted ? 'bg-red-500/20 text-red-500 border-red-500' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}>M</button>
+                                        <button onClick={() => toggleSolo(track.id)} className={`px-2 py-0.5 text-[10px] font-bold rounded border ${track.solo ? 'bg-yellow-500/20 text-yellow-500 border-yellow-500' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}>S</button>
+                                        <div className="flex-1"></div>
+                                        <div className="text-[10px] font-mono text-cyan-500">{track.vol}dB</div>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <i data-lucide="volume-2"></i>
+                                        <input type="range" min="0" max="100" value={track.vol} onChange={(e) => updateVol(track.id, e.target.value)} className="fader-track" />
+                                    </div>
+                                </div>
+                            ))}
+                            <div className="flex-1 bg-zinc-900/50"></div>
+                        </div>
 
-        function updateBPM(val) {
-            bpm = val;
-            document.getElementById('bpmDisplay').innerText = val;
-        }
+                        <div className="flex-1 bg-[#0a0a0a] relative overflow-x-auto overflow-y-auto">
+                            <div className="h-8 bg-zinc-900 border-b border-zinc-800 sticky top-0 z-10 flex text-[10px] font-mono text-zinc-500 items-end pb-1 pl-4" style={{ minWidth: '1200px' }}>
+                                {[...Array(30)].map((_, i) => (<div key={i} className="flex-1 border-l border-zinc-700 h-3 pl-1">{i + 1}</div>))}
+                            </div>
+                            <div className="relative" style={{ minWidth: '1200px', height: `${tracks.length * 96}px` }}>
+                                <div className="absolute inset-0 timeline-grid opacity-20 pointer-events-none"></div>
+                                <div className="absolute top-0 bottom-0 w-px bg-red-500 z-30 playhead pointer-events-none" style={{ transform: `translateX(${currentTime}px)` }}>
+                                    <div className="w-3 h-3 -ml-1.5 bg-red-500 transform rotate-45 -mt-1.5"></div>
+                                </div>
+                                {tracks.map((track, index) => (
+                                    <div key={track.id} className="h-24 border-b border-zinc-800/50 relative py-2">
+                                        <div className="absolute top-1/2 left-0 right-0 h-px bg-zinc-800"></div>
+                                        {track.regions.map((region, rIdx) => (
+                                            <div key={rIdx} className={`absolute top-2 bottom-2 rounded-md border border-white/10 opacity-90 overflow-hidden ${track.muted ? 'opacity-30 grayscale' : ''} ${track.color}`} style={{ left: `${region.start}px`, width: `${region.width}px` }}>
+                                                <div className="absolute inset-0 flex items-center justify-center opacity-30"><div className="w-full h-4 bg-black/50" style={{ clipPath: 'polygon(0 40%, 10% 20%, 20% 80%, 30% 30%, 40% 70%, 50% 40%, 60% 60%, 70% 20%, 80% 80%, 90% 30%, 100% 50%, 100% 100%, 0% 100%)' }}></div></div>
+                                                <div className="absolute top-1 left-2 text-[9px] font-bold text-black/70 truncate w-full pr-2">{track.name}_CLIP_{rIdx}</div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
 
-        // --- VISUALIZADOR ---
-        function visualize() {
-            const canvas = document.getElementById('scope');
-            const cCtx = canvas.getContext('2d');
-            const bufferLength = analyser.frequencyBinCount;
-            const dataArray = new Uint8Array(bufferLength);
-
-            function draw() {
-                requestAnimationFrame(draw);
-                analyser.getByteFrequencyData(dataArray);
-
-                cCtx.fillStyle = '#000';
-                cCtx.fillRect(0, 0, canvas.width, canvas.height);
-
-                const barWidth = (canvas.width / bufferLength) * 2.5;
-                let barHeight;
-                let x = 0;
-
-                for(let i = 0; i < bufferLength; i++) {
-                    barHeight = dataArray[i] / 2;
-
-                    // Colores Cyberpunk dinámicos
-                    const r = barHeight + (25 * (i/bufferLength));
-                    const g = 250 * (i/bufferLength);
-                    const b = 255; // Cian base
-
-                    cCtx.fillStyle = `rgb(${r*0.5},${g},${b})`;
-                    cCtx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-                    x += barWidth + 1;
-                }
-            }
-            draw();
-        }
-
+                    {/* 3. FOOTER / STATUS */}
+                    <footer className="h-6 bg-zinc-950 border-t border-zinc-800 flex items-center justify-between px-4 text-[10px] text-zinc-600 font-mono">
+                        <div>AUDIO_ENGINE: <span className="text-emerald-600">ACTIVE</span> // SYNTH_CORE: <span className="text-cyan-600">PROPRIETARY</span> // LATENCY: {(lookAhead * 1000).toFixed(0)}ms</div>
+                        <div className="flex gap-4"><span>STATUS: AWAITING_COMMAND</span> <span className="text-cyan-800">LETRA_DMZ_AUTHORIZED</span></div>
+                    </footer>
+                </div>
+            );
+        };
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<OmegaDAW />);
     </script>
 </body>
 </html>
