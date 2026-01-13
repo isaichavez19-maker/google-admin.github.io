@@ -20,6 +20,7 @@ client = udp_client.SimpleUDPClient("127.0.0.1", PUERTO_DESTINO)
 # --- ESTADO ---
 LAMBDA = 0.0
 TARGET_LAMBDA = 0.0
+COHERENCIA_GLOBAL = 100.0 # VARIABLE GLOBAL DE SALUD DEL SISTEMA
 
 # --- LÓGICA OSC ---
 def osc_handler(address, *args):
@@ -27,9 +28,21 @@ def osc_handler(address, *args):
     # Amplificación de señal
     TARGET_LAMBDA = args[0] * 10
 
+def handler_coherencia(address, *args):
+    global COHERENCIA_GLOBAL
+    nivel = args[0]
+    estado = args[1]
+
+    # Actualizamos la salud del sistema
+    COHERENCIA_GLOBAL = float(nivel)
+
+    if COHERENCIA_GLOBAL < 50:
+        print(f"!!! ALERTA CM: SISTEMA INESTABLE ({estado}) !!!")
+
 def iniciar_servidor():
     disp = dispatcher.Dispatcher()
     disp.map("/avatar/parameters/MGS_Kick", osc_handler)
+    disp.map("/sistema/coherencia", handler_coherencia)
     # ¡CORRECCIÓN CRÍTICA! Escuchar en 0.0.0.0 para aceptar conexiones de cualquier IP local.
     server = osc_server.ThreadingOSCUDPServer(("0.0.0.0", PUERTO_ESCUCHA), disp)
     print(f"--- CEREBRO LISTO EN PUERTO {PUERTO_ESCUCHA} ---")
@@ -60,6 +73,7 @@ def main():
     pygame.init()
     pantalla = pygame.display.set_mode((ANCHO, ALTO))
     pygame.display.set_caption("DOMINUS // SINGULARIDAD V3")
+
     reloj = pygame.time.Clock()
 
     hilo = threading.Thread(target=iniciar_servidor, daemon=True)
@@ -81,7 +95,17 @@ def main():
         rojo = min(int(LAMBDA * 25), 255)
         pantalla.fill((rojo, 10, 20))
 
-        cx, cy = ANCHO//2, ALTO//2
+        # --- INYECCIÓN DE ENTROPÍA BASADA EN COHERENCIA ---
+        factor_entropia = (100 - COHERENCIA_GLOBAL) / 100.0
+
+        # Determinamos el desplazamiento por el "terremoto digital"
+        shake_x, shake_y = 0, 0
+        if factor_entropia > 0.0:
+            shake_x = random.randint(-10, 10) * factor_entropia
+            shake_y = random.randint(-10, 10) * factor_entropia
+
+        # Aplicamos el desplazamiento a las coordenadas del centro
+        cx, cy = (ANCHO//2) + int(shake_x), (ALTO//2) + int(shake_y)
         radio = 100 + (LAMBDA * 20)
 
         if LAMBDA > 9.0:
@@ -115,6 +139,15 @@ def main():
         # Simular efecto CRT simple
         for i in range(0, ALTO, 4):
             pygame.draw.line(pantalla, (0, 0, 0), (0, i), (ANCHO, i), 1)
+
+        # --- DIBUJAR OVERLAY DE ERROR SI EL SISTEMA ESTÁ DAÑADO ---
+        if factor_entropia > 0.0:
+            s = pygame.Surface((ANCHO, ALTO))
+            # Alpha aumenta con la entropía
+            s.set_alpha(int(120 * factor_entropia))
+            # Teñir de rojo
+            s.fill((255, 0, 0))
+            pantalla.blit(s, (0,0))
 
         pygame.display.flip()
         reloj.tick(60)

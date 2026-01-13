@@ -15,11 +15,19 @@ sleep 2 # Dar tiempo para que el puente se inicie
 
 # Iniciar el Visualizador en segundo plano
 echo "--- Activando el córtex visual (cerebro_v3.py)..."
+export SDL_AUDIODRIVER=dummy
 python3 cerebro_v3.py > cerebro.log 2>&1 &
 VISUALIZER_PID=$!
 sleep 2 # Dar tiempo para que el visualizador se inicie
 
+# Iniciar el Inyector de Coherencia en segundo plano
+echo "--- Iniciando inyector de coherencia (injector.py)..."
+python3 injector.py > injector.log 2>&1 &
+INJECTOR_PID=$!
+sleep 1 # Dar tiempo para que el inyector se inicie
+
 echo ">>> SISTEMA ACTIVADO."
 echo "  - Puente PID: $BRIDGE_PID"
 echo "  - Visualizador PID: $VISUALIZER_PID"
-echo "Logs disponibles en bridge.log y cerebro.log"
+echo "  - Inyector PID: $INJECTOR_PID"
+echo "Logs disponibles en bridge.log, cerebro.log, y injector.log"
