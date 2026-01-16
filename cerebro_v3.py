@@ -68,6 +68,11 @@ def main():
     tiempo = 0
     cooldown_foto = 0
 
+    # Pre-renderizar scanlines para optimización
+    scanlines = pygame.Surface((ANCHO, ALTO), pygame.SRCALPHA)
+    for i in range(0, ALTO, 4):
+        pygame.draw.line(scanlines, (0, 0, 0), (0, i), (ANCHO, i), 1)
+
     running = True
     while running:
         tiempo += 0.1
@@ -113,8 +118,7 @@ def main():
             pygame.draw.line(pantalla, (0, 255, 204), (0, cy), (ANCHO, cy), 1)
 
         # Simular efecto CRT simple
-        for i in range(0, ALTO, 4):
-            pygame.draw.line(pantalla, (0, 0, 0), (0, i), (ANCHO, i), 1)
+        pantalla.blit(scanlines, (0, 0))
 
         pygame.display.flip()
         reloj.tick(60)
