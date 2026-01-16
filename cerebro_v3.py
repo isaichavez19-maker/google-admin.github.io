@@ -37,6 +37,18 @@ def iniciar_servidor():
 
 def lerp(a, b, t): return a + (b - a) * t
 
+def save_image_async(surf, nombre, client_osc, ts):
+    """Guarda la imagen en un hilo separado para no bloquear el renderizado"""
+    try:
+        # Breve pausa para liberar el GIL y evitar bloqueo al inicio del hilo
+        time.sleep(0.01)
+        pygame.image.save(surf, nombre)
+        print(f">>> FOTO GUARDADA: {nombre}")
+        # ¡AQUÍ ESTÁ LA MAGIA! AVISAMOS AL NAVEGADOR
+        client_osc.send_message("/sistema/alerta", f"FOTO_CAPTURA_{ts}")
+    except Exception as e:
+        print(f"ERROR AL GUARDAR FOTO: {e}")
+
 def dibujar_glitch(surf):
     """Simula aberración cromática desplazando canales RGB"""
     w, h = surf.get_size()
@@ -97,11 +109,10 @@ def main():
             if random.random() < 0.02 and time.time() > cooldown_foto:
                 ts = int(time.time())
                 nombre = f"EVIDENCIA_{ts}.png"
-                pygame.image.save(pantalla, nombre)
-                print(f">>> FOTO GUARDADA: {nombre}")
 
-                # ¡AQUÍ ESTÁ LA MAGIA! AVISAMOS AL NAVEGADOR
-                client.send_message("/sistema/alerta", f"FOTO_CAPTURA_{ts}")
+                # Offload to thread
+                pantalla_copy = pantalla.copy()
+                threading.Thread(target=save_image_async, args=(pantalla_copy, nombre, client, ts)).start()
 
                 # Flash visual
                 pantalla.fill((0, 255, 255))
