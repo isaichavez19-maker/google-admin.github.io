@@ -11,8 +11,11 @@ const CONFIG = {
     wsPort: 8081,           // Escucha al Navegador
     udpClientPort: 9000,    // ENVÍA a Python (Cerebro) -> ¡CORREGIDO!
     udpServerPort: 57121,   // ESCUCHA respuestas de Python
-    pythonIP: "127.0.0.1"
+    pythonIP: "127.0.0.1",
+    logThrottle: 2000       // ms between feedback logs
 };
+
+let lastLogTime = 0;
 
 // 1. Cliente OSC (Para hablarle a Python)
 const oscClient = new Client(CONFIG.pythonIP, CONFIG.udpClientPort);
@@ -53,7 +56,13 @@ wss.on('connection', ws => {
     // B. De Python al Navegador (Feedback de la Singularidad)
     oscServer.on('message', (msg) => {
         // msg es ['/address', value]
-        console.log('\n\x1b[41m\x1b[37m%s\x1b[0m', `[FEEDBACK] ${msg[0]}: ${msg[1]}`);
+
+        // OPTIMIZATION: Throttled logging to prevent event loop blocking
+        const now = Date.now();
+        if (now - lastLogTime > CONFIG.logThrottle) {
+            console.log('\n\x1b[41m\x1b[37m%s\x1b[0m', `[FEEDBACK] ${msg[0]}: ${msg[1]}`);
+            lastLogTime = now;
+        }
 
         // Retransmitir al navegador
         const jsonMsg = JSON.stringify({ address: msg[0], value: msg[1] });
