@@ -16,6 +16,18 @@ CURRENT_LAMBDA = 0.0  # El nivel de caos actual (0.0 a 10.0+)
 DECAY = 0.95          # Qué tan rápido se calma el sistema
 
 # --- 1. EL SISTEMA NERVIOSO (OSC LISTENER) ---
+def save_image_async(surface, filename):
+    """Guarda la imagen en un hilo separado para evitar congelar el visualizador."""
+    def _save_worker():
+        # Pequeña pausa para liberar el GIL y evitar tirones en el hilo principal
+        time.sleep(0.01)
+        pygame.image.save(surface, filename)
+        print(f">>> FOTOGRAFÍA GUARDADA: {filename}")
+
+    t = threading.Thread(target=_save_worker)
+    t.daemon = True
+    t.start()
+
 def on_bass_trigger(address, *args):
     global CURRENT_LAMBDA
     volumen = args[0] # Viene del navegador (0.0 a 1.0)
@@ -96,8 +108,9 @@ def main():
         if CURRENT_LAMBDA > 9.5 and random.random() < 0.05:
             timestamp = int(time.time())
             nombre_archivo = f"EVIDENCIA_SINGULARIDAD_{timestamp}.png"
-            pygame.image.save(pantalla, nombre_archivo)
-            print(f">>> FOTOGRAFÍA GUARDADA: {nombre_archivo}")
+
+            # Offload to thread using a copy to ensure thread safety
+            save_image_async(pantalla.copy(), nombre_archivo)
 
             # Flash visual para confirmar captura
             pantalla.fill((255, 255, 255))
