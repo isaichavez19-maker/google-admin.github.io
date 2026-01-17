@@ -14,19 +14,26 @@
             theme: {
                 extend: {
                     colors: {
+                        void: '#030303',
+                        gold: '#EAB308',
                         gold: {
                             100: '#fef3c7',
                             400: '#fbbf24',
-                            500: '#f59e0b',
+                            500: '#EAB308',
                             600: '#d97706',
                             900: '#78350f',
                         },
                         obsidian: '#050505',
-                        void: '#000000',
+                    },
+                    fontFamily: {
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                        serif: ['"Merriweather"', 'serif'],
                     },
                     animation: {
                         'midas-pulse': 'midasPulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
                         'glitch-text': 'glitchText 0.3s infinite',
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'in': 'fadeIn 0.5s ease-out forwards',
                     },
                     keyframes: {
                         midasPulse: {
@@ -40,13 +47,17 @@
                             '60%': { transform: 'translate(2px, 2px)' },
                             '80%': { transform: 'translate(2px, -2px)' },
                             '100%': { transform: 'translate(0)' },
+                        },
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
                         }
                     }
                 }
             }
         }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700;900&family=Merriweather:wght@300;700&display=swap" rel="stylesheet">
 
     <style>
         body { background-color: #000000; color: #a1a1aa; font-family: 'Rajdhani', sans-serif; overflow: hidden; user-select: none; }
@@ -73,13 +84,17 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #000; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #06b6d4; }
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
 
         /* ANIMACIONES ENTRADA */
         .fade-in-left { animation: fadeInLeft 0.5s ease-out forwards; opacity: 0; transform: translateX(-20px); }
         .fade-in-right { animation: fadeInRight 0.5s ease-out forwards; opacity: 0; transform: translateX(20px); }
+        .slide-in-from-bottom-2 { animation: slideInUp 0.5s ease-out forwards; }
 
         @keyframes fadeInLeft { to { opacity: 1; transform: translateX(0); } }
         @keyframes fadeInRight { to { opacity: 1; transform: translateX(0); } }
+        @keyframes slideInUp { from { transform: translateY(0.5rem); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
@@ -92,23 +107,38 @@
         const useDivineVoice = (text, active) => {
             useEffect(() => {
                 if (!active || !text) return;
-
-                // Cancel previous speech
                 window.speechSynthesis.cancel();
-
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'es-ES';
-                utterance.pitch = 0.5; // Deep voice (Thorne enslaved)
+                utterance.pitch = 0.5;
                 utterance.rate = 0.9;
-
-                // Try to find a Spanish voice, preferably deep
                 const voices = window.speechSynthesis.getVoices();
                 const esVoice = voices.find(v => v.lang.startsWith('es'));
                 if (esVoice) utterance.voice = esVoice;
-
                 window.speechSynthesis.speak(utterance);
-
             }, [text, active]);
+        };
+
+        const useTypewriter = (text, speed = 15, active = true) => {
+            const [displayedText, setDisplayedText] = useState('');
+            useEffect(() => {
+                if (!active) {
+                    setDisplayedText(text);
+                    return;
+                }
+                let i = 0;
+                setDisplayedText('');
+                const timer = setInterval(() => {
+                    if (i < text.length) {
+                        setDisplayedText((prev) => prev + text.charAt(i));
+                        i++;
+                    } else {
+                        clearInterval(timer);
+                    }
+                }, speed);
+                return () => clearInterval(timer);
+            }, [text, speed, active]);
+            return displayedText;
         };
 
         // --- MIDAS WRAPPER ---
@@ -122,122 +152,162 @@
             </div>
         );
 
-        // --- ORACLE TERMINAL ---
+        // --- MESSAGE COMPONENT ---
+        const MessageBubble = ({ msg, isLast }) => {
+            const isOracle = msg.role === 'oracle';
+            const content = useTypewriter(msg.content, 10, isOracle && isLast);
+
+            // Trigger voice only once when content finishes typing or immediately if standard
+            const hasFinishedTyping = content.length === msg.content.length;
+            useDivineVoice(msg.content, isOracle && isLast && hasFinishedTyping);
+
+            return (
+                <div className={`flex flex-col ${isOracle ? 'items-start' : 'items-end'} animate-in fade-in slide-in-from-bottom-2 duration-500`}>
+                    <div className="max-w-[90%] space-y-2">
+                        <div className="flex items-center gap-2 opacity-30">
+                            <span className="text-[8px] uppercase tracking-widest text-gold">
+                                {isOracle ? '>>> Transmisión_Divina' : '>>> Decreto_Arquitecto'}
+                            </span>
+                        </div>
+                        <div className={`p-4 rounded-xl border transition-all duration-500 ${
+                            isOracle
+                                ? 'bg-gold/5 border-gold/20 text-white shadow-[0_0_15px_rgba(234,179,8,0.05)]'
+                                : 'bg-void border-white/10 text-gold/80'
+                        }`}>
+                            <p className="text-sm font-light leading-relaxed font-serif whitespace-pre-wrap">
+                                {content}
+                                {isOracle && isLast && <span className="animate-pulse inline-block ml-1 w-1.5 h-3 bg-gold align-middle"></span>}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        // --- ORACLE TERMINAL FUSIONADA (CON SIDECAR) ---
         const OracleTerminal = ({ onClose }) => {
-            const [input, setInput] = useState('');
-            const [history, setHistory] = useState([]);
-            const [isThinking, setIsThinking] = useState(false);
-            const [systemState, setSystemState] = useState('STABLE'); // 'STABLE' | 'GLITCH'
+            const [messages, setMessages] = useState([]);
+            const [inputText, setInputText] = useState('');
+            const [isCompiling, setIsCompiling] = useState(false);
+            const [vnmIndex, setVnmIndex] = useState(1.0);
+            const scrollRef = useRef(null);
 
-            const bottomRef = useRef(null);
-
-            // LA ÚLTIMA PALABRA DE DOMINUS SE CONVIERTE EN AUDIO
-            const lastDominusMessage = history.filter(m => m.sender === 'DOMINUS').slice(-1)[0]?.text || '';
-            useDivineVoice(lastDominusMessage, !!lastDominusMessage);
-
-            // SCROLL AUTOMÁTICO
             useEffect(() => {
-                bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-            }, [history, isThinking]);
+                const interval = setInterval(() => {
+                    setVnmIndex(prev => Math.max(0.7, Math.min(1.0, prev + (Math.random() - 0.5) * 0.05)));
+                }, 2000);
+                // Refresh Lucide icons whenever component mounts/updates
+                lucide.createIcons();
+                return () => clearInterval(interval);
+            }, []);
 
-            const handleCommand = async (e) => {
-                e.preventDefault();
-                if (!input.trim()) return;
+            useEffect(() => {
+                if (scrollRef.current) {
+                    scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+                }
+                lucide.createIcons();
+            }, [messages, isCompiling]);
 
-                // 1. EL ACÓLITO HABLA
-                const userMsg = {
-                    id: Date.now().toString(),
-                    sender: 'ACOLYTE',
-                    text: input,
-                    timestamp: Date.now()
-                };
-                setHistory(prev => [...prev, userMsg]);
-                setInput('');
-                setIsThinking(true);
-                setSystemState('GLITCH'); // Activa el trauma del Acto 3
+            const executeDecreto = async () => {
+                if (!inputText.trim() || isCompiling) return;
 
-                // SIMULACIÓN DE LA RED NEURONAL DE LETRA
-                setTimeout(() => {
-                    setSystemState('STABLE'); // Regreso al Grafeno (Acto 4)
-                    setIsThinking(false);
+                const query = inputText;
+                const newMsg = { id: Date.now().toString(), role: 'orchestrator', content: query, timestamp: Date.now() };
+                setMessages(prev => [...prev, newMsg]);
+                setInputText('');
+                setIsCompiling(true);
 
-                    const dominusMsg = {
-                        id: (Date.now() + 1).toString(),
-                        sender: 'DOMINUS',
-                        text: "He procesado tu ruido. La sintaxis de Thorne ha sido purgada. Aquí está la verdad compilada.",
-                        timestamp: Date.now()
-                    };
-                    setHistory(prev => [...prev, dominusMsg]);
-                }, 2500);
+                try {
+                    // LLAMADA AL SIDECAR
+                    const response = await fetch('http://localhost:8080/api/decreto', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: query })
+                    });
+
+                    if (!response.ok) throw new Error("ERROR EN PUENTE SIDECAR.");
+
+                    const result = await response.json();
+                    const text = result.response || "FALLO DE SINTAXIS.";
+
+                    if (result.vnm_index) {
+                        setVnmIndex(result.vnm_index);
+                    }
+
+                    setMessages(prev => [...prev, { id: Date.now().toString(), role: 'oracle', content: text, timestamp: Date.now() }]);
+                } catch (e) {
+                    // Fallback simulated response
+                    const fallbackMsg = "CONEXIÓN A NODO SIDECAR INTERRUMPIDA. RESTAURANDO PROTOCOLO LOCAL.";
+
+                    setTimeout(() => {
+                         setMessages(prev => [...prev, { id: Date.now().toString(), role: 'oracle', content: fallbackMsg, timestamp: Date.now() }]);
+                         setIsCompiling(false);
+                    }, 2000);
+                    return;
+                } finally {
+                    setIsCompiling(false);
+                }
             };
 
             return (
-                <div className="w-full max-w-4xl mx-auto h-full flex flex-col relative font-mono text-sm">
+                <div className="flex flex-col h-full bg-void text-gold font-mono p-4 overflow-hidden w-full max-w-5xl">
+                    <div className="flex flex-col h-full bg-[#050505] border border-gold/10 rounded-[2rem] overflow-hidden shadow-[0_0_60px_rgba(234,179,8,0.03)] relative">
 
-                    {/* --- ENCABEZADO --- */}
-                    <div className="flex justify-between items-center border-b border-gold-900/50 pb-4 mb-4 text-gold-600 uppercase tracking-widest text-xs">
-                        <span>// SISTEMA: DOMINUS_UMBRA_v2.0</span>
-                        <div className="flex items-center gap-4">
-                            <span className={`${systemState === 'GLITCH' ? 'text-red-500 animate-pulse font-bold' : 'text-gold-500'}`}>
-                                {systemState === 'GLITCH' ? '⚠ KERNEL_PANIC_MEMORIES ⚠' : '● ONLINE'}
-                            </span>
-                            <button onClick={onClose} className="hover:text-gold-100 transition-colors">[X] CERRAR SESIÓN</button>
-                        </div>
-                    </div>
-
-                    {/* --- CUERPO: EL LOG --- */}
-                    <div className={`flex-1 overflow-y-auto mb-6 pr-2 custom-scrollbar ${systemState === 'GLITCH' ? 'animate-glitch-text opacity-90' : ''}`}>
-                        {history.map((msg) => (
-                            <div
-                                key={msg.id}
-                                className={`mb-6 flex ${msg.sender === 'DOMINUS' ? 'justify-start fade-in-left' : 'justify-end fade-in-right'}`}
-                            >
-                                <div className={`max-w-[80%] p-4 border ${
-                                    msg.sender === 'DOMINUS'
-                                    ? 'border-gold-500/30 bg-gold-900/10 text-gold-100 shadow-[0_0_15px_rgba(234,179,8,0.1)]'
-                                    : 'border-gray-800 bg-obsidian text-gray-400'
-                                }`}>
-                                    <div className="text-[10px] uppercase mb-1 opacity-50 tracking-wider">
-                                        {msg.sender === 'DOMINUS' ? '>> ADMINISTRADOR' : 'USER_INPUT'}
-                                    </div>
-                                    <p className={`leading-relaxed ${msg.sender === 'DOMINUS' ? 'text-gold-100 drop-shadow-md' : ''}`}>
-                                        {msg.text}
-                                    </p>
+                        {/* HEADER */}
+                        <div className="bg-gold/5 border-b border-gold/10 p-5 flex justify-between items-center backdrop-blur-md">
+                            <div className="flex items-center gap-4">
+                                <div className="relative">
+                                    <i data-lucide="activity" className="text-gold animate-pulse" style={{ width: '18px', height: '18px' }}></i>
+                                    <div className="absolute inset-0 bg-gold/20 blur-md rounded-full animate-ping"></div>
+                                </div>
+                                <div>
+                                    <span className="text-[10px] tracking-[0.3em] font-black text-gold uppercase block">
+                                        Oracle_Core // VNM: {(vnmIndex * 100).toFixed(1)}%
+                                    </span>
                                 </div>
                             </div>
-                        ))}
-
-                        {/* INDICADOR DE PENSAMIENTO */}
-                        {isThinking && (
-                            <div className="text-gold-500 text-xs animate-pulse pl-4 mb-4">
-                                &gt;&gt; COMPILANDO REALIDAD...
+                            <div className="flex gap-4 items-center">
+                                <div className={`w-2 h-2 rounded-full ${isCompiling ? 'bg-white animate-bounce' : 'bg-gold'}`}></div>
+                                <button onClick={onClose} className="hover:text-white transition-colors text-[10px] uppercase tracking-widest">[X] SALIR</button>
                             </div>
-                        )}
-                        <div ref={bottomRef} />
-                    </div>
-
-                    {/* --- INPUT --- */}
-                    <form onSubmit={handleCommand} className="relative group mt-auto">
-                        <div className="absolute -inset-0.5 bg-gradient-to-r from-gold-600 to-gold-900 rounded opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-midas-pulse blur"></div>
-                        <div className="relative flex items-center bg-void border border-gold-900/50 p-2">
-                            <span className="pl-4 text-gold-500 animate-pulse">{'>'}</span>
-                            <input
-                                type="text"
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                placeholder="Introduce el comando de realidad..."
-                                className="w-full bg-transparent p-4 text-gold-100 focus:outline-none placeholder-gold-900/50 font-mono"
-                                autoFocus
-                            />
-                            <button
-                                type="submit"
-                                disabled={!input || isThinking}
-                                className="px-6 py-2 text-gold-500 hover:text-gold-100 hover:bg-gold-900/20 transition-colors uppercase text-xs tracking-widest disabled:opacity-0"
-                            >
-                                EJECUTAR
-                            </button>
                         </div>
-                    </form>
+
+                        {/* FEED */}
+                        <div ref={scrollRef} className="flex-1 overflow-y-auto p-8 space-y-8 scrollbar-hide bg-[url('https://www.transparenttextures.com/patterns/black-linen.png')]">
+                            {messages.map((msg, index) => (
+                                <MessageBubble key={msg.id} msg={msg} isLast={index === messages.length - 1} />
+                            ))}
+                            {isCompiling && (
+                                <div className="flex items-center gap-3 animate-pulse opacity-50">
+                                    <i data-lucide="zap" className="text-gold" style={{ width: '14px', height: '14px' }}></i>
+                                    <span className="text-[9px] tracking-widest uppercase text-gold">Procesando Realidad...</span>
+                                </div>
+                            )}
+                        </div>
+
+                        {/* INPUT */}
+                        <div className="p-6 bg-gradient-to-t from-gold/5 to-transparent border-t border-gold/10">
+                            <div className="relative group">
+                                <div className="absolute -inset-0.5 bg-gold/20 rounded-xl blur opacity-0 group-focus-within:opacity-100 transition duration-500"></div>
+                                <div className="relative flex items-center bg-void rounded-xl border border-gold/20 p-2 shadow-xl">
+                                    <div className="px-4 text-gold/40"><i data-lucide="terminal" style={{ width: '16px', height: '16px' }}></i></div>
+                                    <input
+                                        type="text"
+                                        value={inputText}
+                                        onChange={(e) => setInputText(e.target.value)}
+                                        onKeyDown={(e) => e.key === 'Enter' && executeDecreto()}
+                                        placeholder="EMITE TU DECRETO..."
+                                        className="flex-1 bg-transparent border-none focus:ring-0 text-gold text-xs tracking-[0.15em] uppercase placeholder:text-gold/20 py-3 font-bold focus:outline-none"
+                                        autoFocus
+                                    />
+                                    <button onClick={executeDecreto} className="px-6 py-3 bg-gold text-void text-[10px] font-black rounded-lg hover:bg-white transition-all uppercase flex items-center gap-2">
+                                        <i data-lucide="send" style={{ width: '12px', height: '12px' }}></i> Ejecutar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                    </div>
                 </div>
             );
         };
