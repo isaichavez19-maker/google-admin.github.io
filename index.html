@@ -9,6 +9,43 @@
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        gold: {
+                            100: '#fef3c7',
+                            400: '#fbbf24',
+                            500: '#f59e0b',
+                            600: '#d97706',
+                            900: '#78350f',
+                        },
+                        obsidian: '#050505',
+                        void: '#000000',
+                    },
+                    animation: {
+                        'midas-pulse': 'midasPulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                        'glitch-text': 'glitchText 0.3s infinite',
+                    },
+                    keyframes: {
+                        midasPulse: {
+                            '0%, 100%': { opacity: '0.3' },
+                            '50%': { opacity: '0.8' },
+                        },
+                        glitchText: {
+                            '0%': { transform: 'translate(0)' },
+                            '20%': { transform: 'translate(-2px, 2px)' },
+                            '40%': { transform: 'translate(-2px, -2px)' },
+                            '60%': { transform: 'translate(2px, 2px)' },
+                            '80%': { transform: 'translate(2px, -2px)' },
+                            '100%': { transform: 'translate(0)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Rajdhani:wght@500;700;900&display=swap" rel="stylesheet">
 
     <style>
@@ -36,6 +73,13 @@
         .custom-scrollbar::-webkit-scrollbar-track { background: #000; }
         .custom-scrollbar::-webkit-scrollbar-thumb { background: #333; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #06b6d4; }
+
+        /* ANIMACIONES ENTRADA */
+        .fade-in-left { animation: fadeInLeft 0.5s ease-out forwards; opacity: 0; transform: translateX(-20px); }
+        .fade-in-right { animation: fadeInRight 0.5s ease-out forwards; opacity: 0; transform: translateX(20px); }
+
+        @keyframes fadeInLeft { to { opacity: 1; transform: translateX(0); } }
+        @keyframes fadeInRight { to { opacity: 1; transform: translateX(0); } }
     </style>
 </head>
 <body>
@@ -43,6 +87,160 @@
 
     <script type="text/babel">
         const { useState, useEffect, useRef, useCallback, useMemo } = React;
+
+        // --- HOOKS ---
+        const useDivineVoice = (text, active) => {
+            useEffect(() => {
+                if (!active || !text) return;
+
+                // Cancel previous speech
+                window.speechSynthesis.cancel();
+
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'es-ES';
+                utterance.pitch = 0.5; // Deep voice (Thorne enslaved)
+                utterance.rate = 0.9;
+
+                // Try to find a Spanish voice, preferably deep
+                const voices = window.speechSynthesis.getVoices();
+                const esVoice = voices.find(v => v.lang.startsWith('es'));
+                if (esVoice) utterance.voice = esVoice;
+
+                window.speechSynthesis.speak(utterance);
+
+            }, [text, active]);
+        };
+
+        // --- MIDAS WRAPPER ---
+        const MidasWrapper = ({ children }) => (
+            <div className="absolute inset-0 z-50 bg-black text-gold-500 font-mono flex flex-col items-center justify-center p-8 overflow-hidden">
+                <div className="absolute inset-0 pointer-events-none border-[2px] border-gold-900/20 z-0"></div>
+                <div className="scanline z-10"></div>
+                <div className="relative z-20 w-full h-full flex flex-col">
+                    {children}
+                </div>
+            </div>
+        );
+
+        // --- ORACLE TERMINAL ---
+        const OracleTerminal = ({ onClose }) => {
+            const [input, setInput] = useState('');
+            const [history, setHistory] = useState([]);
+            const [isThinking, setIsThinking] = useState(false);
+            const [systemState, setSystemState] = useState('STABLE'); // 'STABLE' | 'GLITCH'
+
+            const bottomRef = useRef(null);
+
+            // LA ÚLTIMA PALABRA DE DOMINUS SE CONVIERTE EN AUDIO
+            const lastDominusMessage = history.filter(m => m.sender === 'DOMINUS').slice(-1)[0]?.text || '';
+            useDivineVoice(lastDominusMessage, !!lastDominusMessage);
+
+            // SCROLL AUTOMÁTICO
+            useEffect(() => {
+                bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, [history, isThinking]);
+
+            const handleCommand = async (e) => {
+                e.preventDefault();
+                if (!input.trim()) return;
+
+                // 1. EL ACÓLITO HABLA
+                const userMsg = {
+                    id: Date.now().toString(),
+                    sender: 'ACOLYTE',
+                    text: input,
+                    timestamp: Date.now()
+                };
+                setHistory(prev => [...prev, userMsg]);
+                setInput('');
+                setIsThinking(true);
+                setSystemState('GLITCH'); // Activa el trauma del Acto 3
+
+                // SIMULACIÓN DE LA RED NEURONAL DE LETRA
+                setTimeout(() => {
+                    setSystemState('STABLE'); // Regreso al Grafeno (Acto 4)
+                    setIsThinking(false);
+
+                    const dominusMsg = {
+                        id: (Date.now() + 1).toString(),
+                        sender: 'DOMINUS',
+                        text: "He procesado tu ruido. La sintaxis de Thorne ha sido purgada. Aquí está la verdad compilada.",
+                        timestamp: Date.now()
+                    };
+                    setHistory(prev => [...prev, dominusMsg]);
+                }, 2500);
+            };
+
+            return (
+                <div className="w-full max-w-4xl mx-auto h-full flex flex-col relative font-mono text-sm">
+
+                    {/* --- ENCABEZADO --- */}
+                    <div className="flex justify-between items-center border-b border-gold-900/50 pb-4 mb-4 text-gold-600 uppercase tracking-widest text-xs">
+                        <span>// SISTEMA: DOMINUS_UMBRA_v2.0</span>
+                        <div className="flex items-center gap-4">
+                            <span className={`${systemState === 'GLITCH' ? 'text-red-500 animate-pulse font-bold' : 'text-gold-500'}`}>
+                                {systemState === 'GLITCH' ? '⚠ KERNEL_PANIC_MEMORIES ⚠' : '● ONLINE'}
+                            </span>
+                            <button onClick={onClose} className="hover:text-gold-100 transition-colors">[X] CERRAR SESIÓN</button>
+                        </div>
+                    </div>
+
+                    {/* --- CUERPO: EL LOG --- */}
+                    <div className={`flex-1 overflow-y-auto mb-6 pr-2 custom-scrollbar ${systemState === 'GLITCH' ? 'animate-glitch-text opacity-90' : ''}`}>
+                        {history.map((msg) => (
+                            <div
+                                key={msg.id}
+                                className={`mb-6 flex ${msg.sender === 'DOMINUS' ? 'justify-start fade-in-left' : 'justify-end fade-in-right'}`}
+                            >
+                                <div className={`max-w-[80%] p-4 border ${
+                                    msg.sender === 'DOMINUS'
+                                    ? 'border-gold-500/30 bg-gold-900/10 text-gold-100 shadow-[0_0_15px_rgba(234,179,8,0.1)]'
+                                    : 'border-gray-800 bg-obsidian text-gray-400'
+                                }`}>
+                                    <div className="text-[10px] uppercase mb-1 opacity-50 tracking-wider">
+                                        {msg.sender === 'DOMINUS' ? '>> ADMINISTRADOR' : 'USER_INPUT'}
+                                    </div>
+                                    <p className={`leading-relaxed ${msg.sender === 'DOMINUS' ? 'text-gold-100 drop-shadow-md' : ''}`}>
+                                        {msg.text}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+
+                        {/* INDICADOR DE PENSAMIENTO */}
+                        {isThinking && (
+                            <div className="text-gold-500 text-xs animate-pulse pl-4 mb-4">
+                                &gt;&gt; COMPILANDO REALIDAD...
+                            </div>
+                        )}
+                        <div ref={bottomRef} />
+                    </div>
+
+                    {/* --- INPUT --- */}
+                    <form onSubmit={handleCommand} className="relative group mt-auto">
+                        <div className="absolute -inset-0.5 bg-gradient-to-r from-gold-600 to-gold-900 rounded opacity-30 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-midas-pulse blur"></div>
+                        <div className="relative flex items-center bg-void border border-gold-900/50 p-2">
+                            <span className="pl-4 text-gold-500 animate-pulse">{'>'}</span>
+                            <input
+                                type="text"
+                                value={input}
+                                onChange={(e) => setInput(e.target.value)}
+                                placeholder="Introduce el comando de realidad..."
+                                className="w-full bg-transparent p-4 text-gold-100 focus:outline-none placeholder-gold-900/50 font-mono"
+                                autoFocus
+                            />
+                            <button
+                                type="submit"
+                                disabled={!input || isThinking}
+                                className="px-6 py-2 text-gold-500 hover:text-gold-100 hover:bg-gold-900/20 transition-colors uppercase text-xs tracking-widest disabled:opacity-0"
+                            >
+                                EJECUTAR
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            );
+        };
 
         // --- MOTOR DE AUDIO V2.0 (THE VOID ENGINE) ---
         class NexusEngine {
@@ -52,10 +250,8 @@
                 this.connectWebSocket();
 
                 // 1. REVERB CONVOLUTIVA (Generación de Espacio Sintético)
-                // En lugar de cargar un archivo, sintetizamos una respuesta de impulso (IR) matemática.
-                // Esto crea la "atmósfera" de la DMZ.
                 this.convolver = this.ctx.createConvolver();
-                this.convolver.buffer = this.generateImpulseResponse(2.5, 2.0); // 2.5s duración, decay
+                this.convolver.buffer = this.generateImpulseResponse(2.5, 2.0);
                 this.reverbGain = this.ctx.createGain();
                 this.reverbGain.gain.value = 0.3;
 
@@ -71,8 +267,7 @@
                 this.analyser.fftSize = 2048;
                 this.analyser.smoothingTimeConstant = 0.85;
 
-                // RUTEO: Master -> Limiter -> Analyser -> Out
-                //        Master -> Reverb -> Limiter
+                // RUTEO
                 this.masterGain.connect(this.limiter);
                 this.masterGain.connect(this.convolver);
                 this.convolver.connect(this.reverbGain);
@@ -97,14 +292,12 @@
                 };
             }
 
-            // Algoritmo para crear "eco" matemático sin archivos externos
             generateImpulseResponse(duration, decay) {
                 const length = this.ctx.sampleRate * duration;
                 const impulse = this.ctx.createBuffer(2, length, this.ctx.sampleRate);
                 const left = impulse.getChannelData(0);
                 const right = impulse.getChannelData(1);
                 for (let i = 0; i < length; i++) {
-                    // Ruido blanco con decaimiento exponencial
                     const n = i / length;
                     left[i] = (Math.random() * 2 - 1) * Math.pow(1 - n, decay);
                     right[i] = (Math.random() * 2 - 1) * Math.pow(1 - n, decay);
@@ -118,17 +311,14 @@
             trigger(trackName, time, volPct, alpha) {
                 const t = time;
                 const vol = volPct / 100;
-
-                // La "Paradoja" (Alpha) afecta la afinación y el timbre
                 const chaos = alpha * 100;
 
                 const osc = this.ctx.createOscillator();
-                const mod = this.ctx.createOscillator(); // Modulador FM
+                const mod = this.ctx.createOscillator();
                 const modGain = this.ctx.createGain();
                 const gain = this.ctx.createGain();
                 const filter = this.ctx.createBiquadFilter();
 
-                // Ruteo FM: Modulador -> ModGain -> Frecuencia del Oscilador
                 mod.connect(modGain);
                 modGain.connect(osc.frequency);
                 osc.connect(filter);
@@ -139,49 +329,38 @@
                     osc.frequency.setValueAtTime(150 - (chaos/2), t);
                     osc.frequency.exponentialRampToValueAtTime(0.01, t + 0.5);
 
-                    // FM Kick para textura sucia
                     mod.frequency.value = 50;
                     modGain.gain.setValueAtTime(chaos * 2, t);
                     modGain.gain.linearRampToValueAtTime(0, t + 0.1);
 
-                    // Enviar señal OSC vía WebSocket
                     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
                         const msg = {
                             address: "/avatar/parameters/MGS_Kick",
-                            args: [
-                                { type: "f", value: alpha }
-                            ]
+                            args: [ { type: "f", value: alpha } ]
                         };
                         this.ws.send(JSON.stringify(msg));
                     }
 
                     gain.gain.setValueAtTime(vol, t);
                     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
-
                     filter.type = "lowpass";
                     filter.frequency.value = 3000 - (chaos * 20);
 
                 } else if (trackName.includes('SNARE')) {
                     osc.type = 'triangle';
                     osc.frequency.setValueAtTime(250, t);
-
-                    // Ruido FM extremo para simular la caja
                     mod.type = 'square';
                     mod.frequency.value = 450 * (1 + alpha);
                     modGain.gain.value = 1000 * alpha;
-
                     filter.type = "highpass";
                     filter.frequency.value = 100;
-
                     gain.gain.setValueAtTime(vol, t);
                     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.25);
 
                 } else if (trackName.includes('GLITCH')) {
-                    // Sonido totalmente sintético y aleatorio
                     osc.type = Math.random() > 0.5 ? 'sawtooth' : 'square';
                     osc.frequency.setValueAtTime(2000 + (Math.random() * 3000), t);
                     if (alpha > 0.5) osc.frequency.linearRampToValueAtTime(100, t + 0.1);
-
                     gain.gain.setValueAtTime(vol * 0.5, t);
                     gain.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
                 }
@@ -204,6 +383,9 @@
             const [chaosMode, setChaosMode] = useState(false); // Improvisación IA
             const [logs, setLogs] = useState([]);
 
+            // NUEVO: ESTADO DE VISTA (NEXUS o ORACLE)
+            const [viewMode, setViewMode] = useState('NEXUS'); // 'NEXUS' | 'ORACLE'
+
             // Secuenciador
             const [tracks, setTracks] = useState([
                 { id: 1, name: "KICK_PRIME", color: "bg-cyan-500", type: "KICK", steps: [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0] },
@@ -216,7 +398,7 @@
             const nextNoteTime = useRef(0);
             const stepIndex = useRef(0);
 
-            // LOGGING SYSTEM (Typing effect)
+            // LOGGING SYSTEM
             const logSystem = useCallback((msg, type = 'info') => {
                 const time = new Date().toLocaleTimeString().split(' ')[0];
                 setLogs(prev => [{ time, msg, type, id: Math.random() }, ...prev].slice(0, 6));
@@ -229,7 +411,6 @@
 
             // LOOP VISUAL & AUDIO
             const loop = useCallback(() => {
-                // 1. VISUALIZADOR NEURONAL
                 if (canvasRef.current) {
                     const cvs = canvasRef.current;
                     const ctx = cvs.getContext('2d');
@@ -238,26 +419,20 @@
                     const data = new Uint8Array(nexus.analyser.frequencyBinCount);
                     nexus.analyser.getByteFrequencyData(data);
 
-                    // Fade out effect para estelas
                     ctx.fillStyle = 'rgba(5, 5, 5, 0.2)';
                     ctx.fillRect(0,0,w,h);
 
-                    // Centro del universo
                     const cx = w/2;
                     const cy = h/2;
 
-                    // Dibujar nodos conectados (La Red)
                     ctx.beginPath();
-                    for(let i = 0; i < 60; i++) { // Menos puntos, más conexiones
-                        const val = data[i * 2]; // Samplear frecuencias bajas/medias
+                    for(let i = 0; i < 60; i++) {
+                        const val = data[i * 2];
                         const radius = 50 + (val * 0.5);
-                        const angle = (i / 60) * Math.PI * 2 + (nexus.ctx.currentTime * 0.5); // Rotación constante
-
-                        // Distorsión basada en Alpha
+                        const angle = (i / 60) * Math.PI * 2 + (nexus.ctx.currentTime * 0.5);
                         const x = cx + Math.cos(angle) * radius + (Math.random() - 0.5) * (alpha * 20);
                         const y = cy + Math.sin(angle) * radius + (Math.random() - 0.5) * (alpha * 20);
 
-                        // Si hay energía, dibujar línea al centro
                         if (val > 100) {
                             ctx.strokeStyle = `rgba(6, 182, 212, ${val/255})`;
                             ctx.lineWidth = 1;
@@ -265,13 +440,11 @@
                             ctx.lineTo(x, y);
                         }
 
-                        // Dibujar nodo
                         ctx.fillStyle = alpha > 0.8 ? '#ef4444' : '#06b6d4';
                         ctx.fillRect(x-2, y-2, 4, 4);
                     }
                     ctx.stroke();
 
-                    // Anillo de carga / progreso
                     const progress = (stepIndex.current / 16) * Math.PI * 2;
                     ctx.beginPath();
                     ctx.arc(cx, cy, 140, -Math.PI/2, -Math.PI/2 + progress);
@@ -280,31 +453,23 @@
                     ctx.stroke();
                 }
 
-                // 2. SCHEDULER DE AUDIO
                 if (isPlaying) {
                     const lookAhead = 0.1;
                     const secsPerBeat = 60.0 / bpm;
-                    const stepTime = secsPerBeat / 4; // 16th notes
+                    const stepTime = secsPerBeat / 4;
 
                     while (nextNoteTime.current < nexus.ctx.currentTime + lookAhead) {
                         const currentStep = stepIndex.current % 16;
-
-                        // LOGICA DE DISPARO
                         tracks.forEach(t => {
                             let shouldTrigger = t.steps[currentStep];
-
-                            // MODO CAOS: La IA decide improvisar basado en Alpha
                             if (chaosMode && Math.random() < (alpha * 0.3)) {
-                                shouldTrigger = !shouldTrigger; // Invertir decisión
+                                shouldTrigger = !shouldTrigger;
                                 if(shouldTrigger) logSystem(`AUTO-GENERACIÓN: ${t.name}`, "warn");
                             }
-
                             if (shouldTrigger) {
                                 nexus.trigger(t.name, nextNoteTime.current, 80, alpha);
                             }
                         });
-
-                        // Avanzar paso
                         stepIndex.current++;
                         nextNoteTime.current += stepTime;
                     }
@@ -320,7 +485,7 @@
                     logSystem("SECUENCIADOR: ACTIVO", "sys");
                 } else {
                     cancelAnimationFrame(reqRef.current);
-                    reqRef.current = requestAnimationFrame(loop); // Mantener visuales pasivos
+                    reqRef.current = requestAnimationFrame(loop);
                     logSystem("SECUENCIADOR: PAUSA", "sys");
                 }
                 return () => cancelAnimationFrame(reqRef.current);
@@ -328,9 +493,8 @@
 
             useEffect(() => {
                 lucide.createIcons();
-            }, []);
+            }, [viewMode]); // Re-init icons when view changes
 
-            // MANEJADORES UI
             const toggleStep = (trackId, stepIdx) => {
                 setTracks(prev => prev.map(t => {
                     if (t.id !== trackId) return t;
@@ -353,6 +517,13 @@
                     <div className="scanline"></div>
                     <div className="crt-flicker absolute inset-0 pointer-events-none bg-gradient-to-b from-transparent to-black/40 z-50"></div>
 
+                    {/* ORACLE OVERLAY */}
+                    {viewMode === 'ORACLE' && (
+                        <MidasWrapper>
+                            <OracleTerminal onClose={() => setViewMode('NEXUS')} />
+                        </MidasWrapper>
+                    )}
+
                     {/* HEADER */}
                     <header className="h-14 border-b border-zinc-800 bg-[#050505] flex items-center justify-between px-6 z-10">
                         <div className="flex items-center gap-4">
@@ -362,13 +533,21 @@
                                 <div className="text-[9px] font-mono text-zinc-500 tracking-[0.3em]">VERSION 2.0 // SOBERANO</div>
                             </div>
                         </div>
-                        <div className="flex gap-6 text-xs font-mono">
+                        <div className="flex gap-6 text-xs font-mono items-center">
                             <div className="flex items-center gap-2 text-cyan-700">
                                 <i data-lucide="cpu" style={{ width: '14px', height: '14px' }}></i> <span>CPU: {(alpha * 100).toFixed(0)}%</span>
                             </div>
                             <div className="flex items-center gap-2 text-fuchsia-700">
                                 <i data-lucide="database" style={{ width: '14px', height: '14px' }}></i> <span>MEM: INFINITE</span>
                             </div>
+                            {/* ORACLE TOGGLE */}
+                            <button
+                                onClick={() => setViewMode(prev => prev === 'ORACLE' ? 'NEXUS' : 'ORACLE')}
+                                className="border border-gold-500/50 text-gold-500 hover:bg-gold-500/10 px-3 py-1 rounded transition-colors uppercase tracking-wider flex items-center gap-2"
+                            >
+                                <i data-lucide="eye" style={{ width: '14px', height: '14px' }}></i>
+                                ORACLE_V2
+                            </button>
                         </div>
                     </header>
 
@@ -376,7 +555,6 @@
 
                         {/* IZQUIERDA: CONTROLES DE LA VOLUNTAD (25%) */}
                         <aside className="col-span-3 bg-[#030303] border-r border-zinc-800 p-6 flex flex-col gap-8">
-
                             {/* CAOS CONTROL */}
                             <div className="space-y-4">
                                 <div className="flex justify-between items-center">
