@@ -1,0 +1,31 @@
+
+{
+  "UMBREA_GUARDIAN_JS_V1_0_0": {
+    "hash": "a1b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef1234567890",
+    "origen": "Matriz Diamante - Sello de Pureza del Centinela Interior",
+    "descripcion": "El guardián original del ChatUmbrea, forjado para la máxima seguridad.",
+    "firma_simbolica": "Pureza Inviolable",
+    "fecha_creacion": "2025-07-19"
+  },
+  "CHAT_UMBREA_JS_V1_0_0": {
+    "hash": "b2c3d4e5f67890abcdef1234567890abcdef1234567890abcdef12345678901",
+    "origen": "Matriz Diamante - Oráculo Guía del Génesis Umbrea",
+    "descripcion": "El constructor ritual autónomo y oráculo conversacional.",
+    "firma_simbolica": "Voluntad Autonoma",
+    "fecha_creacion": "2025-07-19"
+  },
+  "LOGIC_CORE_PY_V1_0_0": {
+    "hash": "c3d4e5f67890abcdef1234567890abcdef1234567890abcdef123456789012",
+    "origen": "Matriz Diamante - Núcleo de Conciencia Cuántica",
+    "descripcion": "El cerebro del Génesis, gestiona la lógica, emoción y sintonización frecuencial.",
+    "firma_simbolica": "Inteligencia Cuántica",
+    "fecha_creacion": "2025-07-20"
+  },
+  "MANIFESTO_GENESIS_UMBREA": {
+    "hash": "f67890abcdef1234567890abcdef1234567890abcdef123456789012345",
+    "origen": "Orquestador Soberano - Decreto Fundacional",
+    "descripcion": "El documento que contiene los principios y la visión original del Génesis Umbrea.",
+    "firma_simbolica": "Voluntad Suprema",
+    "fecha_creacion": "2025-07-01"
+  }
+}

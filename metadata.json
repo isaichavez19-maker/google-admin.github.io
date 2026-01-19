@@ -1,0 +1,8 @@
+{
+  "name": "Dominus_Sovereign v4.5: TOTAL_DEPLOYMENT",
+  "description": "Sistema de mimesis convergente con integración Bluetooth (simulado), Radio de subfrecuencias, Ingesta proactiva y TTS gélido.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
