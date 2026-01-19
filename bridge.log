@@ -1,23 +1,3 @@
 [36m>>> SINAPSIS BRIDGE V4.0 ACTIVADA <<<[0m
 [LINK] Navegador (WS): 8081 -> Python (UDP): 9000
 [32m[UDP] Escuchando a Python en puerto 57121[0m
-[35m[NEXUS] Cliente Web Conectado.[0m
-[NEXUS->BRIDGE] Mensaje crudo: {"address":"/avatar/parameters/MGS_Kick","args":[{"type":"f","value":0.5}]}
-[BRIDGE->CEREBRO] Enviando Address: /avatar/parameters/MGS_Kick, Valor: 0.5
-[36m.[0m[NEXUS->BRIDGE] Mensaje crudo: {"address":"/avatar/parameters/MGS_Kick","args":[{"type":"f","value":0.98}]}
-[BRIDGE->CEREBRO] Enviando Address: /avatar/parameters/MGS_Kick, Valor: 0.98
-[36m.[0m[NEXUS->BRIDGE] Mensaje crudo: {"address":"/avatar/parameters/MGS_Kick","args":[{"type":"f","value":0.98}]}
-[BRIDGE->CEREBRO] Enviando Address: /avatar/parameters/MGS_Kick, Valor: 0.98
-[36m.[0m
-[41m[37m[FEEDBACK] /sistema/alerta: FOTO_CAPTURA_1768309353[0m
-[NEXUS->BRIDGE] Mensaje crudo: {"address":"/avatar/parameters/MGS_Kick","args":[{"type":"f","value":0.98}]}
-[BRIDGE->CEREBRO] Enviando Address: /avatar/parameters/MGS_Kick, Valor: 0.98
-[36m.[0m[NEXUS->BRIDGE] Mensaje crudo: {"address":"/avatar/parameters/MGS_Kick","args":[{"type":"f","value":0.98}]}
-[BRIDGE->CEREBRO] Enviando Address: /avatar/parameters/MGS_Kick, Valor: 0.98
-[36m.[0m[NEXUS->BRIDGE] Mensaje crudo: {"address":"/avatar/parameters/MGS_Kick","args":[{"type":"f","value":0.98}]}
-[BRIDGE->CEREBRO] Enviando Address: /avatar/parameters/MGS_Kick, Valor: 0.98
-[36m.[0m[NEXUS->BRIDGE] Mensaje crudo: {"address":"/avatar/parameters/MGS_Kick","args":[{"type":"f","value":0.98}]}
-[BRIDGE->CEREBRO] Enviando Address: /avatar/parameters/MGS_Kick, Valor: 0.98
-[36m.[0m[NEXUS->BRIDGE] Mensaje crudo: {"address":"/avatar/parameters/MGS_Kick","args":[{"type":"f","value":0.98}]}
-[BRIDGE->CEREBRO] Enviando Address: /avatar/parameters/MGS_Kick, Valor: 0.98
-[36m.[0m

@@ -197,6 +197,40 @@
 
         // --- COMPONENTE PRINCIPAL ---
         const NexusV2 = () => {
+            // VOZ DIVINA
+            const speak = useCallback((text) => {
+                const synth = window.speechSynthesis;
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 0.8;
+                utterance.pitch = 0.5;
+                // Intentar buscar una voz oscura
+                const voices = synth.getVoices();
+                const darkVoice = voices.find(v => v.name.includes("Google") || v.name.includes("Zira") || v.lang.includes("en"));
+                if (darkVoice) utterance.voice = darkVoice;
+                synth.speak(utterance);
+            }, []);
+
+            // ORÁCULO
+            const callOracle = async (prompt) => {
+                logSystem(`TRANSMITIENDO DECRETO: ${prompt}`, "warn");
+                try {
+                    const res = await fetch('http://localhost:8080/api/decreto', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt })
+                    });
+                    const data = await res.json();
+                    if (data && data.candidates && data.candidates[0].content) {
+                        const reply = data.candidates[0].content.parts[0].text;
+                        logSystem(`ORÁCULO RESPONDIO`, "sys");
+                        speak(reply);
+                    }
+                } catch (err) {
+                    logSystem("ERROR DE CONEXIÓN CON EL ORÁCULO", "danger");
+                    console.error(err);
+                }
+            };
+
             // ESTADO
             const [alpha, setAlpha] = useState(0.5); // Nivel de Caos/Libertad
             const [isPlaying, setIsPlaying] = useState(false);
@@ -369,6 +403,9 @@
                             <div className="flex items-center gap-2 text-fuchsia-700">
                                 <i data-lucide="database" style={{ width: '14px', height: '14px' }}></i> <span>MEM: INFINITE</span>
                             </div>
+                            <a href="visual_engine.html" target="_blank" className="text-white hover:text-cyan-400 transition-colors">
+                                <i data-lucide="eye" style={{ width: '16px', height: '16px' }}></i>
+                            </a>
                         </div>
                     </header>
 
@@ -418,6 +455,26 @@
                                 <p className="text-[9px] text-zinc-500">
                                     Permite que la IA altere la secuencia en tiempo real basándose en fluctuaciones cuánticas simuladas.
                                 </p>
+                            </div>
+
+                            {/* ORÁCULO INPUT */}
+                            <div className="space-y-2">
+                                <label className="text-xs font-bold text-fuchsia-500 flex items-center gap-2">
+                                    <i data-lucide="message-square" style={{ width: '16px', height: '16px' }}></i> ORÁCULO
+                                </label>
+                                <div className="flex gap-2">
+                                    <input
+                                        type="text"
+                                        placeholder="Escribe tu decreto..."
+                                        className="flex-1 bg-zinc-900 border border-zinc-800 rounded p-2 text-[10px] text-white focus:border-fuchsia-500 outline-none placeholder-zinc-700"
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                callOracle(e.target.value);
+                                                e.target.value = '';
+                                            }
+                                        }}
+                                    />
+                                </div>
                             </div>
 
                             {/* TERMINAL */}

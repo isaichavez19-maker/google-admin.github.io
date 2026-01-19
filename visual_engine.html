@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOMINUS VISUAL ENGINE</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'deep-black': '#000000',
+                        'hyper-cyan': '#00ffff',
+                        'magenta-burn': '#ff00ff',
+                        'void-white': '#ffffff',
+                    },
+                    fontFamily: {
+                        mono: ['Courier New', 'monospace'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #000; color: #fff; font-family: 'Courier New', monospace; }
+        .retina-burn { text-shadow: 2px 2px 0px #ff00ff, -2px -2px 0px #00ffff; }
+        .glitch-border { border: 2px solid #00ffff; box-shadow: 4px 4px 0px #ff00ff; }
+        .btn-hover:hover { background-color: #00ffff; color: #000; box-shadow: 4px 4px 0px #ffffff; cursor: pointer; }
+    </style>
+</head>
+<body class="p-8 h-screen flex flex-col justify-center items-center overflow-hidden bg-black">
+    <!-- Fondo estático simple para evitar problemas de CORS/URLs externas -->
+    <div class="absolute inset-0 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-900 via-black to-black -z-10"></div>
+
+    <div class="z-10 w-full max-w-4xl bg-black border border-white/20 p-8 glitch-border relative">
+        <h1 class="text-6xl font-black mb-8 text-center uppercase tracking-widest retina-burn">Dominus Visual Engine</h1>
+
+        <div class="grid grid-cols-2 gap-8 mb-8">
+            <div>
+                <label class="block text-hyper-cyan text-sm mb-2 font-bold">/// CONCEPTO NUCLEAR</label>
+                <input type="text" id="concept" class="w-full bg-black border border-white/30 text-white p-4 focus:outline-none focus:border-magenta-burn" placeholder="Ej: Cyberpunk God...">
+            </div>
+            <div>
+                 <label class="block text-magenta-burn text-sm mb-2 font-bold">/// PARÁMETROS ESTÉTICOS</label>
+                 <select id="aesthetic" class="w-full bg-black border border-white/30 text-white p-4 focus:outline-none focus:border-hyper-cyan">
+                    <option value="cinematic, 8k, hyperrealistic">Hyperrealism 8K</option>
+                    <option value="vaporwave, neon, glitch art">Vaporwave Glitch</option>
+                    <option value="dark fantasy, oil painting, intricate details">Dark Fantasy Oil</option>
+                    <option value="minimalist, vector art, flat design">Minimalist Vector</option>
+                    <option value="biomechanical, H.R. Giger style">Biomechanical</option>
+                 </select>
+            </div>
+        </div>
+
+        <div class="flex gap-4">
+            <button onclick="generatePrompt()" class="flex-1 bg-black border border-hyper-cyan text-hyper-cyan py-4 font-bold uppercase tracking-widest btn-hover transition-all">
+                Generar Prompt
+            </button>
+            <button onclick="copyToClipboard()" class="flex-1 bg-black border border-magenta-burn text-magenta-burn py-4 font-bold uppercase tracking-widest btn-hover transition-all">
+                Copiar
+            </button>
+        </div>
+
+        <div class="mt-8 p-6 bg-white/5 border border-white/10 min-h-[100px] flex items-center justify-center">
+            <p id="output" class="text-xl text-center text-gray-400 font-bold">ESPERANDO INPUT...</p>
+        </div>
+
+        <div class="absolute -top-4 -right-4 bg-magenta-burn text-black font-bold px-4 py-1 rotate-12">BETA</div>
+    </div>
+
+    <script>
+        const styles = [
+            "--ar 16:9 --v 6.0",
+            "--ar 9:16 --v 6.0",
+            "--ar 1:1 --stylize 250",
+            "--niji 6",
+            "--chaos 50"
+        ];
+
+        function generatePrompt() {
+            const concept = document.getElementById('concept').value || "Abstract Chaos";
+            const aesthetic = document.getElementById('aesthetic').value;
+            const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+
+            const prompt = `/imagine prompt: ${concept}, ${aesthetic}, detailed, atmospheric lighting, volumetric fog, octane render ${randomStyle}`;
+
+            const output = document.getElementById('output');
+            output.innerText = prompt;
+            output.classList.remove('text-gray-400');
+            output.classList.add('text-white');
+        }
+
+        function copyToClipboard() {
+            const text = document.getElementById('output').innerText;
+            if (text === "ESPERANDO INPUT...") return;
+            navigator.clipboard.writeText(text);
+            alert("PROMPT COPIADO AL PORTAPAPELES");
+        }
+    </script>
+</body>
+</html>
