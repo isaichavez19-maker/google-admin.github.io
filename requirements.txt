@@ -1,0 +1,4 @@
+pygame
+python-osc
+pandas
+numpy
