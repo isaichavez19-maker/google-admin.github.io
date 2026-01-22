@@ -79,7 +79,29 @@ if (Test-Path $SourcePath) {
     Get-ChildItem -Path $RepoSource -Exclude ".git",".vscode","venv","*.bat","*.ps1" | Copy-Item -Destination $InstallPath -Recurse -Force
 }
 
-# --- FASE 6: ENLACE NEURONAL (ACCESO DIRECTO) ---
+# --- FASE 6: LA ILUSIÓN LOCAL (PHANTOM METHOD) ---
+Log-System "INFO" "Configurando DNS Fantasma (dominus.umbrea)..."
+$HostsPath = "$env:SystemRoot\System32\drivers\etc\hosts"
+try {
+    if (Test-Path $HostsPath) {
+        # Backup
+        Copy-Item $HostsPath "$HostsPath.bak" -Force
+
+        # Verificar si ya existe
+        if (-not (Select-String -Path $HostsPath -Pattern "dominus.umbrea" -SimpleMatch)) {
+            Add-Content -Path $HostsPath -Value "`r`n127.0.0.1`tdominus.umbrea # PROYECTO DOMINUS" -Force
+            Log-System "OK" "Dominio local inyectado."
+        } else {
+            Log-System "OK" "Dominio ya existente."
+        }
+    } else {
+        Log-System "WARN" "Archivo HOSTS no encontrado."
+    }
+} catch {
+    Log-System "FAIL" "No se pudo modificar HOSTS (¿Faltan permisos Admin?)."
+}
+
+# --- FASE 7: ENLACE NEURONAL (ACCESO DIRECTO) ---
 Log-System "INFO" "Forjando acceso directo..."
 $WshShell = New-Object -comObject WScript.Shell
 $Shortcut = $WshShell.CreateShortcut("$env:USERPROFILE\Desktop\Dominus Umbrea.lnk")
