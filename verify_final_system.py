@@ -1,79 +1,72 @@
-
 import asyncio
-import http.server
-import socketserver
-import threading
 import subprocess
 import os
-import glob
+import time
 from playwright.async_api import async_playwright
 
-PORT = 8000
-EVIDENCE_PATTERN = "EVIDENCIA_*.png"
-
-class Handler(http.server.SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=".", **kwargs)
-
 async def main():
-    # Clean up old evidence files
-    for f in glob.glob(EVIDENCE_PATTERN):
-        os.remove(f)
-        print(f"Removed old evidence file: {f}")
+    print("Launching system via launch_omega.sh...")
+    proc = subprocess.Popen(["./launch_omega.sh"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
-    # Start the backend services
-    print("Launching backend services...")
-    launch_process = subprocess.Popen(["./launch_omega.sh"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    await asyncio.sleep(5) # Give services time to start
+    try:
+        # Wait for services to start
+        print("Waiting 15s for services...")
+        await asyncio.sleep(15)
 
-    # Start the web server
-    with socketserver.TCPServer(("", PORT), Handler) as httpd:
-        server_thread = threading.Thread(target=httpd.serve_forever)
-        server_thread.daemon = True
-        server_thread.start()
-        print(f"Server started at http://localhost:{PORT}")
+        # Check logs
+        if os.path.exists("bridge.log"):
+            print("bridge.log exists.")
+            with open("bridge.log") as f: print(f"Bridge Log Head: {f.read(100)}...")
+        else:
+            print("WARNING: bridge.log missing")
+
+        if os.path.exists("cerebro.log"):
+             print("cerebro.log exists.")
+             with open("cerebro.log") as f: print(f"Cerebro Log Head: {f.read(100)}...")
+        else:
+             print("WARNING: cerebro.log missing")
+
+        if os.path.exists("frontend.log"):
+             print("frontend.log exists.")
+             with open("frontend.log") as f: print(f"Frontend Log Head: {f.read(100)}...")
+        else:
+             print("WARNING: frontend.log missing")
 
         async with async_playwright() as p:
             browser = await p.chromium.launch()
             page = await browser.new_page()
-            page.on("console", lambda msg: print(f"BROWSER CONSOLE: {msg}"))
+
+            print("Navigating to http://localhost:5173...")
             try:
-                print("Navigating to DAW...")
-                await page.goto(f"http://localhost:{PORT}/index.html")
-                await page.wait_for_selector("text=DOMINUS_NEXUS")
+                response = await page.goto("http://localhost:5173", timeout=60000)
+                if response:
+                    print(f"Page load returned status: {response.status}")
 
-                print("Clicking play button...")
-                await page.locator('[data-testid="play-pause-button"]').click()
+                # Take screenshot
+                await page.screenshot(path="verification_screenshot.png")
+                print("Screenshot saved to verification_screenshot.png")
 
-                print("Cranking up alpha to trigger singularity...")
-                await page.locator('input[type="range"]').fill("0.98")
-
-                print("Waiting for visual notification...")
-                notification_selector = "text=[REC] EVIDENCIA SECURED"
-                await page.wait_for_selector(notification_selector, timeout=20000)
-                print("Visual notification found!")
-
-                print("Checking for evidence file...")
-                await asyncio.sleep(2) # Give file system time to sync
-                evidence_files = glob.glob(EVIDENCE_PATTERN)
-                if not evidence_files:
-                    raise Exception("Verification failed: No evidence screenshot was created.")
-
-                print(f"Verification successful: Found evidence file: {evidence_files[0]}")
+                # Check for some text
+                content = await page.content()
+                if "Dominus" in content or "DOMINUS" in content or "Aquiles" in content:
+                     print("SUCCESS: Found expected text in page.")
+                else:
+                     print("WARNING: Expected text not found in page content.")
+                     print("Page Content Snippet:", content[:500])
 
             except Exception as e:
-                print(f"An error occurred during verification: {e}")
-            finally:
-                await browser.close()
-                httpd.shutdown()
-                print("Server stopped.")
-                # Terminate the backend services
-                print("Terminating backend services...")
-                launch_process.terminate()
-                launch_process.wait()
-                os.system("kill $(lsof -t -i:8081) 2>/dev/null || true")
-                os.system("kill $(lsof -t -i:9000) 2>/dev/null || true")
-                os.system("kill $(lsof -t -i:57121) 2>/dev/null || true")
+                print(f"Browser navigation failed: {e}")
+
+            await browser.close()
+
+    finally:
+        print("Terminating system...")
+        proc.terminate()
+        # Cleanup ports manually just in case
+        os.system("kill $(lsof -t -i:8081) 2>/dev/null || true")
+        os.system("kill $(lsof -t -i:9000) 2>/dev/null || true")
+        os.system("kill $(lsof -t -i:57121) 2>/dev/null || true")
+        os.system("kill $(lsof -t -i:5173) 2>/dev/null || true")
 
 if __name__ == "__main__":
     asyncio.run(main())

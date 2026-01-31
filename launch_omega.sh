@@ -1,25 +1,32 @@
 #!/bin/bash
-echo ">>> INICIANDO SISTEMA OMEGA..."
+export SDL_VIDEODRIVER=dummy
+echo ">>> INICIANDO SISTEMA OMEGA (GLOBAL DEPLOYMENT)..."
 
-# Matar procesos anteriores en los puertos para asegurar un inicio limpio
+# Cleanup
 echo "--- Limpiando puertos..."
 kill $(lsof -t -i:8081) 2>/dev/null || true
 kill $(lsof -t -i:9000) 2>/dev/null || true
 kill $(lsof -t -i:57121) 2>/dev/null || true
+kill $(lsof -t -i:5173) 2>/dev/null || true
 
-# Iniciar el Puente Node.js en segundo plano
+# Start Backend
 echo "--- Activando el puente (bridge.js)..."
-node bridge.js > bridge.log 2>&1 &
+node bridge.cjs > bridge.log 2>&1 &
 BRIDGE_PID=$!
-sleep 2 # Dar tiempo para que el puente se inicie
+sleep 2
 
-# Iniciar el Visualizador en segundo plano
 echo "--- Activando el córtex visual (cerebro_v3.py)..."
 python3 cerebro_v3.py > cerebro.log 2>&1 &
-VISUALIZER_PID=$!
-sleep 2 # Dar tiempo para que el visualizador se inicie
+CEREBRO_PID=$!
+sleep 2
+
+# Start Frontend
+echo "--- Iniciando Frontend (Vite)..."
+npm run dev -- --port 5173 --host 0.0.0.0 > frontend.log 2>&1 &
+FRONTEND_PID=$!
 
 echo ">>> SISTEMA ACTIVADO."
-echo "  - Puente PID: $BRIDGE_PID"
-echo "  - Visualizador PID: $VISUALIZER_PID"
-echo "Logs disponibles en bridge.log y cerebro.log"
+echo "PID Bridge: $BRIDGE_PID"
+echo "PID Cerebro: $CEREBRO_PID"
+echo "PID Frontend: $FRONTEND_PID"
+echo "Frontend accesible en http://localhost:5173"
