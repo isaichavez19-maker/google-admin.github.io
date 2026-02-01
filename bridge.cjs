@@ -32,9 +32,10 @@ console.log(`[LINK] Frontend (WS): ${CONFIG.wsPort} <-> Python (UDP): ${CONFIG.u
 
 // Broadcast helper
 function broadcast(msg) {
+    const json = JSON.stringify(msg);
     wss.clients.forEach(client => {
         if (client.readyState === WebSocket.OPEN) {
-            client.send(JSON.stringify(msg));
+            client.send(json);
         }
     });
 }
@@ -105,7 +106,6 @@ oscServer.on('message', (msg) => {
         });
     } else {
         // Standard forwarding
-        // console.log(`[FEEDBACK] ${address}: ${value}`);
         broadcast({ address: address, value: value });
     }
 });
