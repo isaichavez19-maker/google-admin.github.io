@@ -15,6 +15,11 @@ export const BioSyncModule: React.FC = () => {
   }, []);
 
   const bio = status.dna.bio;
+  const bioRef = useRef(bio);
+
+  useEffect(() => {
+    bioRef.current = bio;
+  }, [bio]);
 
   const connectBluetooth = () => {
     setIsConnecting(true);
@@ -33,11 +38,13 @@ export const BioSyncModule: React.FC = () => {
     if (!ctx) return;
 
     let frame: number;
-    const buffer = bio.ecg_buffer;
 
     const draw = () => {
+      const currentBio = bioRef.current;
+      const buffer = currentBio.ecg_buffer;
+
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.strokeStyle = bio.bio_locked ? '#f43f5e' : '#18181b';
+      ctx.strokeStyle = currentBio.bio_locked ? '#f43f5e' : '#18181b';
       ctx.lineWidth = 3;
       ctx.lineCap = 'round';
       ctx.beginPath();
@@ -54,7 +61,7 @@ export const BioSyncModule: React.FC = () => {
       }
       ctx.stroke();
 
-      if (bio.bio_locked) {
+      if (currentBio.bio_locked) {
         ctx.shadowBlur = 15;
         ctx.shadowColor = '#f43f5e';
       }
@@ -64,7 +71,7 @@ export const BioSyncModule: React.FC = () => {
 
     draw();
     return () => cancelAnimationFrame(frame);
-  }, [bio.ecg_buffer, bio.bio_locked]);
+  }, []);
 
   return (
     <div className="flex flex-col h-full gap-10 p-12 bg-black/60 border border-white/5 rounded-[60px] backdrop-blur-3xl animate-fadeIn overflow-hidden relative shadow-[0_0_100px_rgba(0,0,0,1)]">
