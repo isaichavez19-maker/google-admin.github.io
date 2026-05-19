@@ -1,8 +1,8 @@
 """
-DOMINUS UMBREA - SECURE API BRIDGE v1.1
+DOMINUS UMBREA - AUDIT-READY SECURE API BRIDGE v1.2
 Architect: Jules (Standard Library Implementation)
 Endpoints: /v1/cortex/train, /v1/security/sign, /health, /v1/dna/status
-Features: Multi-threaded, API Key, Rate Limiting, Guardrails, Timeouts
+Security: Threading, Rate Limiting (Leak-proof), Path Sanitization, Timeouts
 """
 
 import http.server
@@ -12,34 +12,50 @@ import os
 import re
 import threading
 import socketserver
+import sys
+import hmac
 
 # --- CONFIGURATION ---
 PORT = 8000
-# Production: Ensure DOMINUS_API_KEY is set.
 API_KEY = os.environ.get("DOMINUS_API_KEY")
 RATE_LIMIT_SECONDS = 2
 MAX_CONTENT_LENGTH = 1024 * 1024  # 1MB
 DEFAULT_TIMEOUT = 30 # Seconds
+PRUNE_THRESHOLD = 1000 # Number of IPs before pruning
 
-# --- SECURITY UTILS ---
+# --- SHARED STATE ---
 last_request_time = {}
 request_lock = threading.Lock()
 
 def sanitize_output(text):
-    """Refined guardrail to prevent leaking absolute system paths."""
+    """
+    Precision guardrail to prevent leaking absolute system paths or credentials.
+    Targets common Unix entry points while sparing standard URIs.
+    """
     if not isinstance(text, str):
         return text
-    # Only redact paths that look like absolute Unix paths (starting with /home, /etc, /root, /app)
-    # to avoid redacting relative links or other data.
-    sensitive_prefixes = r'/(home|etc|root|app|var|usr)/[a-zA-Z0-9._/-]+'
-    text = re.sub(sensitive_prefixes, '[REDACTED_PATH]', text)
 
-    # Redact potential internal hex identifiers (16+ chars)
-    text = re.sub(r'0x[a-fA-F0-9]{16,}', '[REDACTED_IDENTIFIER]', text)
+    # Redact absolute paths that start with sensitive system directories
+    sensitive_prefixes = r'/(home|etc|root|app|var|usr|opt|bin|sbin)/[a-zA-Z0-9._/-]+'
+    text = re.sub(sensitive_prefixes, '[REDACTED_SYSTEM_PATH]', text)
+
+    # Redact high-entropy identifiers (hex strings 32+ characters)
+    text = re.sub(r'0x[a-fA-F0-9]{32,}', '[REDACTED_INTERNAL_ID]', text)
+
+    # Redact the active API Key if it somehow ends up in the output
+    if API_KEY and len(API_KEY) > 8:
+        text = text.replace(API_KEY, '[REDACTED_API_KEY]')
+
     return text
 
+def prune_rate_limit_cache():
+    """Removes stale IP entries to prevent memory exhaustion."""
+    now = time.time()
+    stale_keys = [ip for ip, last_time in last_request_time.items() if now - last_time > 3600] # 1 hour stale
+    for ip in stale_keys:
+        del last_request_time[ip]
+
 class ThreadingHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
-    """Handle requests in separate threads."""
     daemon_threads = True
 
 class SecureAPIHandler(http.server.BaseHTTPRequestHandler):
@@ -53,22 +69,20 @@ class SecureAPIHandler(http.server.BaseHTTPRequestHandler):
             pass
 
     def _check_security(self):
-        # 0. API Key check
-        if not API_KEY:
-             # In a real environment, we'd fail, but for the bridge's initial setup we might warn.
-             # However, per user request, security is priority.
-             pass
-
-        # 1. API Key Validation
+        # 1. API Key Validation (Constant-time comparison)
         key = self.headers.get('X-API-Key')
-        if key != API_KEY:
-            self._send_json({"error": "Unauthorized: Invalid API Key"}, 401)
+        if not API_KEY or not key or not hmac.compare_digest(key, API_KEY):
+            self._send_json({"error": "Unauthorized: Invalid or missing API Key"}, 401)
             return False
 
-        # 2. Rate Limiting (Thread-safe)
+        # 2. Rate Limiting (Thread-safe & Leak-proof)
         client_ip = self.client_address[0]
         now = time.time()
         with request_lock:
+            # Periodic prune
+            if len(last_request_time) > PRUNE_THRESHOLD:
+                prune_rate_limit_cache()
+
             if client_ip in last_request_time:
                 if now - last_request_time[client_ip] < RATE_LIMIT_SECONDS:
                     self._send_json({"error": "Too Many Requests: Rate limit exceeded"}, 429)
@@ -89,9 +103,14 @@ class SecureAPIHandler(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == '/health':
-            self._send_json({"status": "ONLINE", "version": "1.1.0-standard"})
-        elif self.path == '/v1/dna/status':
-            if not self._check_security(): return
+            # Public endpoint
+            self._send_json({"status": "ONLINE", "version": "1.2.0-secure"})
+            return
+
+        if not self._check_security():
+            return
+
+        if self.path == '/v1/dna/status':
             self._send_json({
                 "convergence": 0.994,
                 "identity": "VALIDATED_SHA256",
@@ -113,12 +132,10 @@ class SecureAPIHandler(http.server.BaseHTTPRequestHandler):
             return
 
         # 4. Implementation of Timeouts
-        # In a real bridge, we'd wrap the LLM call in a timeout.
-        # Here we simulate a long-running task if 'simulate_timeout' is passed.
-
         start_time = time.time()
 
         if self.path == '/v1/cortex/train':
+            # Simulate processing delay
             if data.get('simulate_delay'):
                 time.sleep(data.get('simulate_delay'))
 
@@ -127,6 +144,10 @@ class SecureAPIHandler(http.server.BaseHTTPRequestHandler):
                 return
 
             response_text = f"DNA Sync Complete. Convergence optimized for vector {data.get('vector', 'unknown')}."
+            # Example of potential leak that should be caught by guardrail
+            if data.get('leak_test'):
+                response_text += " Internal path detected: /app/secrets/key.txt"
+
             self._send_json({
                 "status": "SUCCESS",
                 "payload": {"vst3_metadata": {"cutoff": 3200, "resonance": 0.85}},
@@ -146,11 +167,12 @@ class SecureAPIHandler(http.server.BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     if not API_KEY:
-        print("WARNING: DOMINUS_API_KEY not set. Using default 'DOMINUS_SECURE_TOKEN'.")
-        API_KEY = "DOMINUS_SECURE_TOKEN"
+        print("CRITICAL ERROR: DOMINUS_API_KEY environment variable is not set.")
+        print("Abort mission. System Sovereignty requires authentication.")
+        sys.exit(1)
 
     server = ThreadingHTTPServer(('0.0.0.0', PORT), SecureAPIHandler)
-    print(f">>> DOMINUS SECURE API v1.1 ACTIVE ON PORT {PORT} (THREADED) <<<")
+    print(f">>> DOMINUS SECURE API v1.2 ACTIVE ON PORT {PORT} (AUDIT-READY) <<<")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

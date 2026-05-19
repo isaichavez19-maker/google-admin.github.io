@@ -42,6 +42,7 @@ def test_api():
         print("Testing Timeout (504)...")
         conn = get_conn()
         # We simulate a 31s delay, which exceeds the 30s limit
+        # Note: server-side timeout in api.py is 30s
         body = json.dumps({"vector": "TIMEOUT_TEST", "simulate_delay": 31})
         conn.request("POST", "/v1/cortex/train", body=body, headers=headers)
         res = conn.getresponse()
@@ -52,17 +53,41 @@ def test_api():
 
         time.sleep(2.1) # Cooldown
 
-        # 3. Test Sanitization
-        print("Testing Sanitization...")
-        # Note: In the current mock implementation, 'simulate_delay' is the only thing that changes output.
-        # But we can verify sanitize_output works if we were to return paths.
-        # Since I can't easily change the mock without re-writing api.py,
-        # I'll trust the logic if the basic endpoints work.
+        # 3. Test Sanitization (Guardrails)
+        print("Testing Sanitization (Guardrails)...")
+        conn = get_conn()
+        body = json.dumps({"vector": "LEAK_TEST", "leak_test": True})
+        conn.request("POST", "/v1/cortex/train", body=body, headers=headers)
+        res = conn.getresponse()
+        data = json.loads(res.read().decode())
+        print(f"Response: {data['message']}")
+        assert "[REDACTED_SYSTEM_PATH]" in data["message"]
+        assert "/app/secrets" not in data["message"]
+        print("OK: Sanitization redacts system paths.")
+
+        time.sleep(2.1) # Cooldown
+
+        # 4. Test Authentication Enforcement
+        print("Testing Authentication Enforcement...")
+        conn = get_conn()
+        conn.request("GET", "/v1/dna/status", headers={}) # Missing key
+        res = conn.getresponse()
+        assert res.status == 401
+        print("OK: Unauthorized access rejected.")
+
+        time.sleep(2.1) # Cooldown
+
+        # 5. Test Rate Limiting
+        print("Testing Rate Limiting (429)...")
         conn = get_conn()
         conn.request("GET", "/v1/dna/status", headers=headers)
-        res = conn.getresponse()
-        assert res.status == 200
-        print("OK: Sanitization logic present in code.")
+        res1 = conn.getresponse()
+        res1.read()
+
+        conn.request("GET", "/v1/dna/status", headers=headers)
+        res2 = conn.getresponse()
+        assert res2.status == 429
+        print("OK: Rate limiting enforced.")
 
     finally:
         process.terminate()
