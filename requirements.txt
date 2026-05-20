@@ -1,0 +1,3 @@
+# Core dependencies for Dominus Umbrea API Bridge
+# Standard library is used for most security features
+# No external dependencies required for the current implementation

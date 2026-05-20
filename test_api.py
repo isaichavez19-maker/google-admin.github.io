@@ -7,6 +7,9 @@ import os
 import threading
 
 def test_api():
+    # Kill any existing server
+    subprocess.run("kill $(lsof -t -i :8000) 2>/dev/null || true", shell=True)
+
     # Start the API server in the background
     env = os.environ.copy()
     env["DOMINUS_API_KEY"] = "V1_SECURE_TEST"

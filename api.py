@@ -18,6 +18,7 @@ import hmac
 # --- CONFIGURATION ---
 PORT = 8000
 API_KEY = os.environ.get("DOMINUS_API_KEY")
+RESIDUO_VISCERAL = os.environ.get("RESIDUO_VISCERAL", "9.0e-10")
 RATE_LIMIT_SECONDS = 2
 MAX_CONTENT_LENGTH = 1024 * 1024  # 1MB
 DEFAULT_TIMEOUT = 30 # Seconds
@@ -173,6 +174,8 @@ if __name__ == '__main__':
 
     server = ThreadingHTTPServer(('0.0.0.0', PORT), SecureAPIHandler)
     print(f">>> DOMINUS SECURE API v1.2 ACTIVE ON PORT {PORT} (AUDIT-READY) <<<")
+    print(f"[!] RESIDUO VISCERAL DETECTED: {RESIDUO_VISCERAL}")
+    print(f"[!] STATUS: LOCK_TOTAL_V∞. REALIDAD SUBYUGADA.")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
