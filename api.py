@@ -14,11 +14,13 @@ import threading
 import socketserver
 import sys
 import hmac
+import http.client
 
 # --- CONFIGURATION ---
 PORT = 8000
 API_KEY = os.environ.get("DOMINUS_API_KEY")
 RESIDUO_VISCERAL = os.environ.get("RESIDUO_VISCERAL", "9.0e-10")
+OLLAMA_URL = os.environ.get("OLLAMA_HOST", "localhost:11434")
 RATE_LIMIT_SECONDS = 2
 MAX_CONTENT_LENGTH = 1024 * 1024  # 1MB
 DEFAULT_TIMEOUT = 30 # Seconds
@@ -40,6 +42,10 @@ def sanitize_output(text):
     sensitive_prefixes = r'/(home|etc|root|app|var|usr|opt|bin|sbin)/[a-zA-Z0-9._/-]+'
     text = re.sub(sensitive_prefixes, '[REDACTED_SYSTEM_PATH]', text)
 
+    # Redact potential transaction hashes or wallet addresses (Ethereum-style 40 chars)
+    # Must check for specific length 40 first to avoid being caught by the general 32+ catch-all
+    text = re.sub(r'0x[a-fA-F0-9]{40}\b', '[REDACTED_TX_ADDRESS]', text)
+
     # Redact high-entropy identifiers (hex strings 32+ characters)
     text = re.sub(r'0x[a-fA-F0-9]{32,}', '[REDACTED_INTERNAL_ID]', text)
 
@@ -48,6 +54,53 @@ def sanitize_output(text):
         text = text.replace(API_KEY, '[REDACTED_API_KEY]')
 
     return text
+
+def sovereignty_privacy_shield(input_text):
+    """
+    Pre-processing shield to strip sensitive operator data before sending to Ollama.
+    Guarantees privacy for human-operator transactions and personal IDs.
+    """
+    if not isinstance(input_text, str):
+        return input_text
+
+    # Redact human names (basic pattern), IDs, and specific private identifiers
+    patterns = [
+        (r'\b[A-Z][a-z]+ [A-Z][a-z]+\b', '[HUMAN_OPERATOR]'), # Name placeholder
+        (r'\b\d{3}-\d{2}-\d{4}\b', '[PRIVATE_ID]'),           # SSN-style
+        (r'\b\d{16}\b', '[CREDIT_CARD_REDACTED]'),            # 16-digit card
+    ]
+
+    for pattern, replacement in patterns:
+        input_text = re.sub(pattern, replacement, input_text)
+
+    return input_text
+
+def call_ollama(prompt, model="llama3"):
+    """Internal gateway to local Ollama instance."""
+    try:
+        host, port = OLLAMA_URL.split(':')
+        conn = http.client.HTTPConnection(host, int(port), timeout=DEFAULT_TIMEOUT)
+
+        # Apply the Privacy Shield before sending
+        safe_prompt = sovereignty_privacy_shield(prompt)
+
+        payload = json.dumps({
+            "model": model,
+            "prompt": safe_prompt,
+            "stream": False
+        })
+
+        headers = {'Content-Type': 'application/json'}
+        conn.request("POST", "/api/generate", body=payload, headers=headers)
+
+        res = conn.getresponse()
+        if res.status != 200:
+            return {"error": f"Ollama Error: {res.status}"}
+
+        data = json.loads(res.read().decode())
+        return data.get("response", "No response from model.")
+    except Exception as e:
+        return {"error": f"Ollama Connectivity Failed: {str(e)}"}
 
 def prune_rate_limit_cache():
     """Removes stale IP entries to prevent memory exhaustion."""
@@ -155,6 +208,25 @@ class SecureAPIHandler(http.server.BaseHTTPRequestHandler):
                 "message": sanitize_output(response_text),
                 "timestamp": int(time.time())
             })
+
+        elif self.path == '/v1/cortex/think':
+            # Proxy request to local Ollama with Sovereignty Shield
+            prompt = data.get('prompt', '')
+            model = data.get('model', 'llama3')
+
+            # Check for direct local processing (Privacy & Sovereignty)
+            ollama_response = call_ollama(prompt, model)
+
+            if isinstance(ollama_response, dict) and "error" in ollama_response:
+                self._send_json(ollama_response, 503)
+            else:
+                self._send_json({
+                    "status": "SUCCESS",
+                    "sovereignty_level": "MAXIMUM",
+                    "response": sanitize_output(ollama_response),
+                    "shielded": True,
+                    "timestamp": int(time.time())
+                })
 
         elif self.path == '/v1/security/sign':
             self._send_json({

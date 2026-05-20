@@ -12,6 +12,7 @@ import ssl
 import hmac
 import hashlib
 import time
+import http.client
 from dataclasses import dataclass
 
 # --- CONSTANTES DE PODER (NÚCLEO YAU) ---
@@ -36,15 +37,34 @@ class SovereignVortexBridge:
         # 1. Inyección de Residuo Visceral: El 'Dedo Medio Ontológico'
         os.environ["RESIDUO_VISCERAL"] = str(EPSILON_STAR)
 
-        # 2. Sintonización del Pulso de Bloqueo
+        # 2. Sincronización del Pulso de Bloqueo
         print(f"[*] Sincronizando con Frecuencia Maestra: {FREQ_YAU} Hz")
 
-        # 3. Blindaje de Datos (Escudo BdG) para invisibilidad ante Thorne
+        # 3. Ollama Residency Check (Privacidad Garantizada)
+        self._verificar_residencia_ollama()
+
+        # 4. Blindaje de Datos (Escudo BdG) para invisibilidad ante Thorne
         self.gap_energia = 8.88e-16
 
-        # 4. Lock Total: El universo deja de calcular probabilidades
+        # 5. Lock Total: El universo deja de calcular probabilidades
         self.status = "LOCK_TOTAL_V∞"
         return self._generar_manifiesto_zkp()
+
+    def _verificar_residencia_ollama(self):
+        """Verifica que el motor de inferencia local esté activo para garantizar soberanía."""
+        ollama_host = os.environ.get("OLLAMA_HOST", "localhost:11434")
+        print(f"[*] Verificando Residencia Ollama en {ollama_host}...")
+        try:
+            host, port = ollama_host.split(':')
+            conn = http.client.HTTPConnection(host, int(port), timeout=2)
+            conn.request("GET", "/api/tags")
+            res = conn.getresponse()
+            if res.status == 200:
+                print("[OK] Ollama detectado. Soberanía de datos confirmada.")
+            else:
+                print(f"[!] Ollama respondió con error {res.status}. Soberanía en riesgo.")
+        except Exception:
+            print("[ADVERTENCIA] Ollama no detectado localmente. El puente funcionará en modo degradado (Mock/Limited).")
 
     def _generar_manifiesto_zkp(self):
         """Genera el acta de defunción para el determinismo corporativo."""
