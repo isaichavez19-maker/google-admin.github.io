@@ -117,6 +117,9 @@ class SecureAPIHandler(http.server.BaseHTTPRequestHandler):
         try:
             self.send_response(status)
             self.send_header('Content-Type', 'application/json')
+            self.send_header('Access-Control-Allow-Origin', '*')
+            self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+            self.send_header('Access-Control-Allow-Headers', 'X-API-Key, Content-Type')
             self.end_headers()
             self.wfile.write(json.dumps(data).encode('utf-8'))
         except (BrokenPipeError, ConnectionResetError):
@@ -155,10 +158,18 @@ class SecureAPIHandler(http.server.BaseHTTPRequestHandler):
 
         return True
 
+    def do_OPTIONS(self):
+        """Handle CORS pre-flight requests from browser environments like Google Colab."""
+        self.send_response(204)
+        self.send_header('Access-Control-Allow-Origin', '*')
+        self.send_header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS')
+        self.send_header('Access-Control-Allow-Headers', 'X-API-Key, Content-Type')
+        self.end_headers()
+
     def do_GET(self):
         if self.path == '/health':
             # Public endpoint
-            self._send_json({"status": "ONLINE", "version": "1.2.0-secure"})
+            self._send_json({"status": "ONLINE", "version": "1.2.1-newton"})
             return
 
         if not self._check_security():
@@ -175,6 +186,14 @@ class SecureAPIHandler(http.server.BaseHTTPRequestHandler):
 
     def do_POST(self):
         if not self._check_security():
+            return
+
+        if self.path == '/v1/newton/handshake':
+            self._send_json({
+                "vector": "STABLE",
+                "force": "NEWTON_ACK",
+                "sovereignty": "CONFIRMED"
+            })
             return
 
         try:
